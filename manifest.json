@@ -1,0 +1,21 @@
+{
+    "manifest_version": 3,
+    "name": "Bilibili Gamepad control",
+    "version": "1.0",
+    "description": "Allow you to use gamepad controller to control Bilibili.",
+    "permissions": ["scripting"],
+    "host_permissions": ["https://*.bilibili.com/*"],
+    "background": {
+        "service_worker": "background.js"
+    },
+    "content_scripts": [
+        {
+            "matches": ["https://*.bilibili.com/*"],
+            "js": ["content.js"]
+        }
+    ],
+    "action": {
+        "default_popup": "popup.html",
+        "default_icon": "icon.png"
+    }
+}
