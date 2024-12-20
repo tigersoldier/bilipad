@@ -1,5 +1,7 @@
+// @ts-check
 // https://w3c.github.io/gamepad/#remapping
-const StandardButtonMapping = {
+/** @enum {number} */
+const ButtonId = {
     A: 0,
     B: 1,
     X: 2,
@@ -22,45 +24,51 @@ const StandardButtonMapping = {
 const DOM_RECT_EPS = 1e-2;
 
 const ButtonName = {
-    [StandardButtonMapping.A]: 'a',
-    [StandardButtonMapping.B]: 'b',
-    [StandardButtonMapping.X]: 'x',
-    [StandardButtonMapping.Y]: 'y',
-    [StandardButtonMapping.LB]: 'lb',
-    [StandardButtonMapping.RB]: 'rb',
-    [StandardButtonMapping.LT]: 'lt',
-    [StandardButtonMapping.RT]: 'rt',
-    [StandardButtonMapping.SELECT]: 'select',
-    [StandardButtonMapping.START]: 'start',
-    [StandardButtonMapping.L3]: 'l3',
-    [StandardButtonMapping.R3]: 'r3',
-    [StandardButtonMapping.DPAD_UP]: 'dpad_up',
-    [StandardButtonMapping.DPAD_DOWN]: 'dpad_down',
-    [StandardButtonMapping.DPAD_LEFT]: 'dpad_left',
-    [StandardButtonMapping.DPAD_RIGHT]: 'dpad_right',
-    [StandardButtonMapping.POWER]: 'power',
+    [ButtonId.A]: 'a',
+    [ButtonId.B]: 'b',
+    [ButtonId.X]: 'x',
+    [ButtonId.Y]: 'y',
+    [ButtonId.LB]: 'lb',
+    [ButtonId.RB]: 'rb',
+    [ButtonId.LT]: 'lt',
+    [ButtonId.RT]: 'rt',
+    [ButtonId.SELECT]: 'select',
+    [ButtonId.START]: 'start',
+    [ButtonId.L3]: 'l3',
+    [ButtonId.R3]: 'r3',
+    [ButtonId.DPAD_UP]: 'dpad_up',
+    [ButtonId.DPAD_DOWN]: 'dpad_down',
+    [ButtonId.DPAD_LEFT]: 'dpad_left',
+    [ButtonId.DPAD_RIGHT]: 'dpad_right',
+    [ButtonId.POWER]: 'power',
 }
 
 const INITIAL_REPEAT_DELAY_MS = 500;
 const REPEAT_INTERVAL_MS = 100;
 
+/**
+ * @enum {number}
+ */
+const EventType = {
+    PRESSED: 0,
+    RELEASED: 1,
+    REPEAT: 2,
+}
+
 class ButtonState {
     /**
      * @param {GamepadButton} button
-     * @param {number} index
      */
-    constructor(button, index) {
+    constructor(button) {
         this.pressed = button.pressed;
         this.updateTimeMs = Date.now();
-        this.buttonIndex = index;
-        this.name = ButtonName[index] || `button${index}`;
         this.nextRepeatTimeMs = 0;
     }
 
     /**
      * @param {GamepadButton} button
      *
-     * @returns {string | null} the event if not null
+     * @returns {EventType | null} the type of the event if not null
      */
     updateState(button) {
         if (!this.pressed) {
@@ -70,18 +78,18 @@ class ButtonState {
             this.pressed = true;
             this.updateTimeMs = Date.now();
             this.nextRepeatTimeMs = Date.now() + INITIAL_REPEAT_DELAY_MS;
-            return `${this.name}_pressed`;
+            return EventType.PRESSED;
         }
         // Button was pressed
         if (!button.pressed) {
             this.pressed = false;
             this.updateTimeMs = Date.now();
-            return `${this.name}_released`;
+            return EventType.RELEASED;
         }
         // Button is held. Check if we need to repeat.
         if (this.nextRepeatTimeMs && Date.now() >= this.nextRepeatTimeMs) {
             this.nextRepeatTimeMs = Date.now() + REPEAT_INTERVAL_MS;
-            return `${this.name}_repeat`;
+            return EventType.REPEAT;
         }
         return null;
     }
@@ -104,12 +112,18 @@ class GamepadButtonEvent {
     /**
      * @param {Gamepad} gamepad
      * @param {GamepadButton} button
-     * @param {string} eventName
+     * @param {ButtonId} buttonId
+     * @param {EventType} eventType
      */
-    constructor(gamepad, button, eventName) {
+    constructor(gamepad, button, buttonId, eventType) {
+        /** @type {Gamepad} */
         this.gamepad = gamepad;
+        /** @type {GamepadButton} */
         this.button = button;
-        this.eventName = eventName;
+        /** @type {ButtonId} */
+        this.buttonId = buttonId;
+        /** @type {EventType} */
+        this.eventType = eventType;
     }
 }
 
@@ -122,8 +136,8 @@ class GamepadManager {
         this.maybeStartGamepadLoop();
         /** @type {Record<string, ButtonState[]>} */
         this.buttonStates = {};
-        /** @type {Map<string, Listener[]>} */
-        this.eventListeners = new Map();
+        /** @type {Listener[]} */
+        this.eventListeners = [];
     }
 
     maybeStartGamepadLoop() {
@@ -148,14 +162,11 @@ class GamepadManager {
                 continue;
             }
             gamepad.buttons.forEach((button, index) => {
-                const eventName = this.buttonStates[gamepad.index][index].updateState(button);
-                if (eventName) {
-                    console.log("GamepadButton Event:", eventName);
-                    const event = new GamepadButtonEvent(gamepad, button, eventName);
-                    const listeners = this.eventListeners.get(eventName);
-                    if (listeners) {
-                        listeners.forEach(listener => listener.emit(event));
-                    }
+                const eventType = this.buttonStates[gamepad.index][index].updateState(button);
+                if (eventType !== null) {
+                    console.log("GamepadButton Event:", eventType);
+                    const event = new GamepadButtonEvent(gamepad, button, index, eventType);
+                    this.eventListeners.forEach(listener => listener.emit(event));
                 }
             });
         }
@@ -167,7 +178,7 @@ class GamepadManager {
     onGamepadConnected(event) {
         console.log("Gamepad connected:", event.gamepad);
         if (!this.buttonStates[event.gamepad.index]) {
-            this.buttonStates[event.gamepad.index] = event.gamepad.buttons.map((button, index) => new ButtonState(button, index));
+            this.buttonStates[event.gamepad.index] = event.gamepad.buttons.map((button) => new ButtonState(button));
         }
         console.log("Current gamepads:", navigator.getGamepads());
         this.maybeStartGamepadLoop();
@@ -183,20 +194,16 @@ class GamepadManager {
     }
 
     /**
-     * @param {string} event
      * @param {(event: GamepadButtonEvent) => void} func
      * @returns {{ remove: () => void }}
      */
-    addEventListener(event, func) {
-        if (!this.eventListeners.has(event)) {
-            this.eventListeners.set(event, []);
-        }
+    addEventListener(func) {
         const listener = new Listener(func);
-        this.eventListeners.get(event).push(listener);
+        this.eventListeners.push(listener);
 
         return ({
             remove: () => {
-                const listeners = this.eventListeners.get(event);
+                const listeners = this.eventListeners;
                 if (!listeners) {
                     return;
                 }
@@ -207,10 +214,9 @@ class GamepadManager {
 }
 
 /**
- * @template {NavControl<P> | null} P
- * @abstract
+ * @template {BaseControl | null} P
  */
-class NavControl {
+class BaseControl {
     /**
      * @param {HTMLElement} element
      * @param {P} parent
@@ -218,41 +224,22 @@ class NavControl {
     constructor(element, parent) {
         /** @type {HTMLElement} */
         this.element = element;
-        this.element.nav = this;
+        attachControl(element, this);
+        /** @type {P} */
         this.parent = parent;
     }
 
-    focus() { }
-
     /**
-     * @returns {NavControl | null}
+     * @param {GamepadButtonEvent} event
+     * @returns {boolean} if the button is handled
      */
-    down() { }
-
-    /**
-     * @returns {NavControl | null}
-     */
-    up() { }
-
-    /**
-     * @returns {NavControl | null}
-     */
-    left() { }
-
-    /**
-     * @returns {NavControl | null}
-     */
-    right() { }
-
-    /**
-     * @returns {P}
-     */
-    parent() {
-        return this.parent;
-    }
-
-    /** @returns {boolean} if the action is handled */
-    onAction() {
+    onGamepadButtonEvent(event) {
+        if (event.eventType === EventType.PRESSED) {
+            switch (event.buttonId) {
+                case ButtonId.A:
+                    return this.onActionButtonPressed(event);
+            }
+        }
         return false;
     }
 
@@ -260,15 +247,26 @@ class NavControl {
      * @param {GamepadButtonEvent} event
      * @returns {boolean} if the button is handled
      */
-    onButtonPressed(event) {
+    onActionButtonPressed(event) {
         return false;
     }
 }
 
+class Focusable {
+    focus() { }
+}
+
+class Navigateable {
+    down() { }
+    up() { }
+    left() { }
+    right() { }
+}
+
 /**
- * @extends {NavControl<null>}
+ * @extends {BaseControl<null>}
  */
-class HeaderControl extends NavControl {
+class HeaderControl extends BaseControl {
     /**
      * @param {HTMLElement} element
      */
@@ -277,19 +275,21 @@ class HeaderControl extends NavControl {
         const rightEntry = document.querySelector(".right-entry");
         if (rightEntry) {
             // Iterate over the child elements of the right entry
-            for (const child of rightEntry.childNodes) {
+            for (let i = 0; i < rightEntry.childNodes.length; i++) {
+                const child = rightEntry.childNodes[i];
                 if (child.nodeType !== Node.ELEMENT_NODE) {
                     continue;
                 }
+                const childElement = /** @type {HTMLElement} */ (child);
                 // Check the href attribute of the child anchor element
-                const anchor = child.querySelector("a");
+                const anchor = childElement.querySelector("a");
                 if (!anchor) {
                     console.log("No anchor found for right entry child", child);
                     continue;
                 }
                 if (anchor.href.includes("t.bilibili.com")) {
                     console.log("Found fav menu", child);
-                    this.favMenu = new HeaderEntry(child, anchor.href, this);
+                    this.favMenu = new HeaderEntry(childElement, anchor.href, this);
                 }
             }
         }
@@ -299,18 +299,25 @@ class HeaderControl extends NavControl {
      * @override
      * @param {GamepadButtonEvent} event
      */
-    onButtonPressed(event) {
-        if (event.eventName === "a_pressed" && this.favMenu) {
-            return this.favMenu.onAction();
+    onGamepadButtonEvent(event) {
+        if (event.eventType !== EventType.PRESSED) {
+            return false;
+        }
+        switch (event.buttonId) {
+            case ButtonId.A:
+                if (this.favMenu) {
+                    return this.favMenu.onActionButtonPressed(event);
+                }
+                break;
         }
         return false;
     }
 }
 
 /**
- * @extends {NavControl<HeaderControl>}
+ * @extends {BaseControl<HeaderControl>}
  */
-class HeaderEntry extends NavControl {
+class HeaderEntry extends BaseControl {
     /**
      * @param {HTMLElement} element
      * @param {string} url
@@ -321,22 +328,60 @@ class HeaderEntry extends NavControl {
         this.url = url;
     }
 
-    /** @override */
-    onAction() {
+    onActionButtonPressed(event) {
         window.location.href = this.url;
         return true;
     }
 }
 
 /**
- * @extends {NavControl<null>}
+ * @template {BaseControl | null} P
+ * @extends {BaseControl<P>}
  */
-class FeedCardList extends NavControl {
+class ContainerControl extends BaseControl {
+    /**
+     * @param {number} currentIdx
+     * @returns {boolean} if the button is handled
+     */
+    innerDown(currentIdx) {
+        return false;
+    }
+
+    /**
+     * @param {number} currentIdx
+     * @returns {boolean} if the button is handled
+     */
+    innerUp(currentIdx) {
+        return false;
+    }
+
+    /**
+     * @param {number} currentIdx
+     * @returns {boolean} if the button is handled
+     */
+    innerLeft(currentIdx) {
+        return false;
+    }
+
+    /**
+     * @param {number} currentIdx
+     * @returns {boolean} if the button is handled
+     */
+    innerRight(currentIdx) {
+        return false;
+    }
+}
+
+/**
+ * @extends {ContainerControl<null>}
+ */
+class FeedCardList extends ContainerControl {
     /**
      * @param {HTMLElement} element
      */
     constructor(element) {
         super(element, null);
+        /** @type {NodeListOf<HTMLElement>} */
         const feedCards = document.querySelectorAll(".container > div");
         /** @type {FeedCard[]} */
         this.feedCards = [];
@@ -350,12 +395,13 @@ class FeedCardList extends NavControl {
     }
 
     /**
+     * @override
      * @param {number} currentIdx
-     * @returns {FeedCard | null}
+     * @returns {boolean} if the button is handled
      */
     innerDown(currentIdx) {
         if (currentIdx >= this.feedCards.length - 1) {
-            return null;
+            return false;
         }
         let bestMatch = this.feedCards[currentIdx + 1];
         const currentRect = this.feedCards[currentIdx].element.getBoundingClientRect();
@@ -367,42 +413,48 @@ class FeedCardList extends NavControl {
                 if (rect.left < currentRect.left + currentRect.width + DOM_RECT_EPS && rect.left + rect.width > currentRect.left - DOM_RECT_EPS) {
                     // We found an element that is below the current element and overlaps with the current element
                     // column-wise. This is the best match.
-                    return feedCard;
+                    feedCard.focus();
+                    return true;
                 }
             }
         }
-        return bestMatch;
+        bestMatch.focus();
+        return true;
     }
 
     /**
+     * @override
      * @param {number} currentIdx
-     * @returns {FeedCard | null}
+     * @returns {boolean} if the button is handled
      */
     innerRight(currentIdx) {
         if (currentIdx >= this.feedCards.length - 1) {
-            return null;
+            return false;
         }
-        return this.feedCards[currentIdx + 1];
+        this.feedCards[currentIdx + 1].focus();
+        return true;
     }
 
     /**
      * @param {number} currentIdx
-     * @returns {FeedCard | null}
+     * @returns {boolean} if the button is handled
      */
     innerLeft(currentIdx) {
         if (currentIdx <= 0) {
-            return null;
+            return false;
         }
-        return this.feedCards[currentIdx - 1];
+        this.feedCards[currentIdx - 1].focus();
+        return true;
     }
 
     /**
+     * @override
      * @param {number} currentIdx
-     * @returns {FeedCard | null}
+     * @returns {boolean} if the button is handled
      */
     innerUp(currentIdx) {
         if (currentIdx <= 0) {
-            return null;
+            return false;
         }
         let bestMatch = this.feedCards[currentIdx - 1];
         const currentRect = this.feedCards[currentIdx].element.getBoundingClientRect();
@@ -414,21 +466,66 @@ class FeedCardList extends NavControl {
                 if (rect.left < currentRect.left + currentRect.width + DOM_RECT_EPS && rect.left + rect.width > currentRect.left - DOM_RECT_EPS) {
                     // We found an element that is above the current element and overlaps with the current element
                     // column-wise. This is the best match.
-                    return feedCard;
+                    feedCard.focus();
+                    return true;
                 }
             }
         }
-        return bestMatch;
+        bestMatch.focus();
+        return true;
+    }
+}
+
+/** @typedef {new (...args: any[]) => any} Constructor */
+
+/**
+ * @template {!Constructor} C
+ * @param {C} superclass
+ */
+function ContainerChildControl(superclass) {
+    return class extends superclass {
+        down() {
+            return this.parent.innerDown(this.index);
+        }
+
+        up() {
+            return this.parent.innerUp(this.index);
+        }
+
+        left() {
+            return this.parent.innerLeft(this.index);
+        }
+
+        right() {
+            return this.parent.innerRight(this.index);
+        }
+
+        onGamepadButtonEvent(event) {
+            if (event.eventType === EventType.PRESSED || event.eventType === EventType.REPEAT) {
+                switch (event.buttonId) {
+                    case ButtonId.DPAD_DOWN:
+                        return this.down();
+                    case ButtonId.DPAD_UP:
+                        return this.up();
+                    case ButtonId.DPAD_LEFT:
+                        return this.left();
+                    case ButtonId.DPAD_RIGHT:
+                        return this.right();
+                }
+            }
+            return super.onGamepadButtonEvent(event);
+        }
     }
 }
 
 /**
- * @extends {NavControl<FeedCardList>}
+ * @template ContainerChildControl, BaseControl<FeedCardList>
  */
-class FeedCard extends NavControl {
+class FeedCard extends ContainerChildControl(BaseControl) {
     /**
      * @param {HTMLElement} element
      * @param {FeedCardList} parent
+     * @param {number} index
      */
     constructor(element, parent, index) {
         super(element, parent);
@@ -447,27 +544,7 @@ class FeedCard extends NavControl {
     }
 
     /** @override */
-    down() {
-        return this.parent.innerDown(this.index);
-    }
-
-    /** @override */
-    up() {
-        return this.parent.innerUp(this.index);
-    }
-
-    /** @override */
-    left() {
-        return this.parent.innerLeft(this.index);
-    }
-
-    /** @override */
-    right() {
-        return this.parent.innerRight(this.index);
-    }
-
-    /** @override */
-    onAction() {
+    onActionButtonPressed(event) {
         if (this.url) {
             window.location.href = this.url;
             return true;
@@ -477,9 +554,9 @@ class FeedCard extends NavControl {
 }
 
 /**
- * @extends {NavControl<null>}
+ * @extends {BaseControl<null>}
  */
-class PlayerControl extends NavControl {
+class PlayerControl extends BaseControl {
     /**
      * @param {HTMLElement} element
      */
@@ -490,18 +567,102 @@ class PlayerControl extends NavControl {
             console.log("No play button found");
             return;
         }
+        const fullScreenButton = element.querySelector(".bpx-player-ctrl-full");
+        if (!fullScreenButton) {
+            console.log("No full screen button found");
+            return;
+        }
         /** @type {HTMLButtonElement} */
-        this.playButton = playButton;
+        this.playButton = /** @type {HTMLButtonElement} */ (playButton);
+        /** @type {HTMLButtonElement} */
+        this.fullScreenButton = /** @type {HTMLButtonElement} */ (fullScreenButton);
     }
 
     /**
      * @override
      * @param {GamepadButtonEvent} event
      */
-    onButtonPressed(event) {
-        if (event.eventName === "a_pressed") {
-            this.playButton.click();
-            return true;
+    onGamepadButtonEvent(event) {
+        if (event.eventType !== EventType.PRESSED) {
+            return false;
+        }
+        switch (event.buttonId) {
+            case ButtonId.A:
+                this.playButton.click();
+                return true;
+            case ButtonId.X:
+                this.fullScreenButton.click();
+                return true;
+        }
+        return false;
+    }
+}
+
+/**
+ * @extends {BaseControl<null>}
+ */
+class RootPage extends BaseControl {
+    constructor() {
+        super(document.body, null);
+        /** @type {HeaderControl | null} */
+        this.headerControl = null;
+        /** @type {FeedCardList | null} */
+        this.feedCardList = null;
+        /** @type {PlayerControl | null} */
+        this.playerControl = null;
+        const headerElement = /** @type {HTMLElement} */ (document.querySelector(".bili-header"));
+        if (headerElement) {
+            this.headerControl = new HeaderControl(headerElement);
+        }
+
+        this.updateFeedCardList();
+        this.updatePlayerControl();
+
+        this.observer = new MutationObserver(this.onMutation.bind(this));
+        this.observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    onMutation(mutations) {
+        console.log("Mutation:", mutations);
+        this.updateFeedCardList();
+        this.updatePlayerControl();
+    }
+
+    updateFeedCardList() {
+        const feedCardList = /** @type {HTMLElement} */ (document.querySelector(".feed2"));
+        if (feedCardList) {
+            this.feedCardList = new FeedCardList(feedCardList);
+        }
+    }
+
+    updatePlayerControl() {
+        const playerElement = /** @type {HTMLElement} */ (document.querySelector("#bilibili-player"));
+        if (playerElement) {
+            this.playerControl = new PlayerControl(playerElement);
+        }
+    }
+
+    /**
+     * @override
+     * @param {GamepadButtonEvent} event
+     */
+    onGamepadButtonEvent(event) {
+        if (event.eventType !== EventType.PRESSED) {
+            return false;
+        }
+        switch (event.buttonId) {
+            case ButtonId.DPAD_DOWN:
+                if (this.feedCardList) {
+                    this.feedCardList.focus();
+                    return true;
+                }
+                break;
+            case ButtonId.B:
+                window.history.back();
+                return true;
+        }
+        if (this.playerControl) {
+            return this.playerControl.onGamepadButtonEvent(event);
         }
         return false;
     }
@@ -511,119 +672,47 @@ class Bibibili {
     constructor() {
         this.gamepadManager = new GamepadManager();
         // listen to the dom mutation event
-        this.observer = new MutationObserver(this.onMutation.bind(this));
-        this.observer.observe(document.body, { childList: true, subtree: true });
         this.ltPressed = false;
-        this.gamepadManager.addEventListener("lt_pressed", () => this.ltPressed = true);
-        this.gamepadManager.addEventListener("lt_released", () => this.ltPressed = false);
-        this.gamepadManager.addEventListener("a_pressed", (event) => {
-            let control = null;
-            if (this.ltPressed && this.headerControl) {
-                console.log("Clicking fav menu");
-                control = this.headerControl;
-            } else {
-                control = this.getFocusedControl();
-                if (!control) {
-                    control = this.defaultControl;
-                }
-            }
-            console.log("action control:", control);
-            while (control) {
-                if (control.onAction()) {
-                    return;
-                }
-                if (control.onButtonPressed(event)) {
-                    return;
-                }
-                control = control.parent();
-            }
-        });
-        for (const direction of ["down", "up", "left", "right"]) {
-            this.gamepadManager.addEventListener(`dpad_${direction}_pressed`, (event) => {
-                this.onNavigation(event);
-            });
-            this.gamepadManager.addEventListener(`dpad_${direction}_repeat`, (event) => {
-                this.onNavigation(event);
-            });
-        }
+        this.gamepadManager.addEventListener((event) => this.onGamepadButtonEvent(event));
 
-        /** @type {HeaderControl | null} */
-        this.headerControl = null;
-        /** @type {FeedCardList | null} */
-        this.feedCardList = null;
-        /** @type {NavControl | null} */
-        this.defaultControl = null;
-        /** @type {PlayerControl | null} */
-        this.playerControl = null;
-    }
-
-    onMutation(mutations) {
-        console.log("Mutation:", mutations);
-        this.headerControl = null;
-        this.feedCardList = null;
-        const headerElement = document.querySelector(".bili-header");
-        if (headerElement) {
-            this.headerControl = new HeaderControl(headerElement);
-        }
-
-        const feedCardList = document.querySelector(".feed2");
-        if (feedCardList) {
-            this.feedCardList = new FeedCardList(feedCardList);
-            this.defaultControl = this.feedCardList;
-        }
-
-        const playerElement = document.querySelector("#bilibili-player");
-        if (playerElement) {
-            console.log("Found player element", playerElement);
-            this.playerControl = new PlayerControl(playerElement);
-            this.defaultControl = this.playerControl;
-        }
+        /** @type {RootPage | null} */
+        this.rootPage = new RootPage();
     }
 
     /**
      * @param {GamepadButtonEvent} event
      */
-    onNavigation(event) {
-        console.log("Navigation:", event);
-        // Get the currently focused element
-        const focusedElement = this.getFocusedControl();
-        if (!focusedElement) {
-            console.log("No focused nav element found");
-            if (this.defaultControl) {
-                this.defaultControl.focus();
+    onGamepadButtonEvent(event) {
+        console.log("Gamepad button event:", event);
+        if (event.buttonId === ButtonId.LT) {
+            if (event.eventType === EventType.PRESSED) {
+                this.ltPressed = true;
+            } else if (event.eventType === EventType.RELEASED) {
+                this.ltPressed = false;
             }
             return;
         }
-        console.log("Focused nav element:", focusedElement);
-        let nextElement = null;
-        switch (event.eventName) {
-            case "dpad_down_pressed":
-            case "dpad_down_repeat":
-                nextElement = focusedElement.down();
-                break;
-            case "dpad_up_pressed":
-            case "dpad_up_repeat":
-                nextElement = focusedElement.up();
-                break;
-            case "dpad_left_pressed":
-            case "dpad_left_repeat":
-                nextElement = focusedElement.left();
-                break;
-            case "dpad_right_pressed":
-            case "dpad_right_repeat":
-                nextElement = focusedElement.right();
-                break;
+
+        // Get the control to handle the event
+        let control = this.getFocusedControl();
+        if (!control) {
+            control = this.rootPage;
         }
-        if (nextElement) {
-            console.log("Navigating to:", nextElement);
-            nextElement.focus();
-        } else {
-            console.log("No next element found");
+        if (!control) {
+            console.log("No control found");
+            return;
+        }
+        console.log("Control:", control);
+        while (control) {
+            if (control.onGamepadButtonEvent(event)) {
+                return;
+            }
+            control = control.parent;
         }
     }
 
     /**
-     * @returns {NavControl | null}
+     * @returns {BaseControl | null}
      */
     getFocusedControl() {
         const focusedElement = document.activeElement;
@@ -631,15 +720,15 @@ class Bibibili {
         if (!focusedElement) {
             return null;
         }
-        let navElement = focusedElement.nav;
+        let control = getControl(focusedElement);
         let currentElement = focusedElement;
-        while (!navElement && !!currentElement) {
+        while (!control && !!currentElement) {
             currentElement = currentElement.parentElement;
             if (currentElement) {
-                navElement = currentElement.nav;
+                control = getControl(currentElement);
             }
         }
-        return navElement;
+        return control;
     }
 
     getHeaderControl() {
@@ -666,3 +755,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     bibibili = new Bibibili();
 });
+
+/**
+ * @param {Element} element
+ * @param {BaseControl} control
+ */
+function attachControl(element, control) {
+    /** @type {any} */ (element).biliCtrl = control;
+}
+
+/**
+ * @param {Element} element
+ * @returns {BaseControl | undefined}
+ */
+function getControl(element) {
+    return /** @type any */ (element).biliCtrl;
+}
