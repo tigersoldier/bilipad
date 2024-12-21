@@ -138,21 +138,67 @@ class GamepadManager {
         this.buttonStates = {};
         /** @type {Listener[]} */
         this.eventListeners = [];
+        // Listen to the page inactive event
+        document.addEventListener("visibilitychange", this.onVisibilityChange.bind(this));
+        // Listen to window focus/blur events
+        window.addEventListener("focus", () => {
+            console.log("Window focused");
+        });
+        window.addEventListener("blur", () => {
+            console.log("Window blurred");
+            this.onPageDeactivated();
+        });
     }
 
+    /**
+     * @returns {boolean} if the gamepad loop was started
+     */
     maybeStartGamepadLoop() {
         if (this.gamepadHandle) {
-            return;
+            return false;
+        }
+        if (document.visibilityState === "hidden") {
+            return false;
+        }
+        if (!document.hasFocus()) {
+            console.log("Window not focused");
+            return false;
         }
         if (navigator.getGamepads().some(gamepad => !!gamepad)) {
             this.gamepadHandle = setInterval(() => this.gamepadLoop(), 16);
+            return true;
         }
+        return false;
     }
 
     stopGamepadLoop() {
         if (this.gamepadHandle) {
             clearInterval(this.gamepadHandle);
             this.gamepadHandle = null;
+        }
+    }
+
+    onPageActivated() {
+        if (!this.maybeStartGamepadLoop()) {
+            return;
+        }
+        // Send pressed events for any buttons that are currently pressed
+        for (const gamepad of navigator.getGamepads()) {
+            if (!gamepad || !gamepad.connected) {
+                continue;
+            }
+            this.sendPressedEvents(gamepad);
+        }
+    }
+
+    onPageDeactivated() {
+        this.stopGamepadLoop();
+        // Send released events for any buttons that are currently pressed
+        for (const gamepad of navigator.getGamepads()) {
+            if (!gamepad || !gamepad.connected) {
+                continue;
+            }
+            this.sendReleasedEvents(gamepad);
         }
     }
 
@@ -165,11 +211,49 @@ class GamepadManager {
                 const eventType = this.buttonStates[gamepad.index][index].updateState(button);
                 if (eventType !== null) {
                     console.log("GamepadButton Event:", eventType);
-                    const event = new GamepadButtonEvent(gamepad, button, index, eventType);
-                    this.eventListeners.forEach(listener => listener.emit(event));
+                    this.emitButtonEvent(gamepad, button, index, eventType);
                 }
             });
         }
+    }
+
+    /**
+     * @param {Gamepad} gamepad
+     * @param {GamepadButton} button
+     * @param {ButtonId} buttonId
+     * @param {EventType} eventType
+     */
+    emitButtonEvent(gamepad, button, buttonId, eventType) {
+        const event = new GamepadButtonEvent(gamepad, button, buttonId, eventType);
+        this.eventListeners.forEach(listener => listener.emit(event));
+    }
+
+    onVisibilityChange() {
+        console.log("Visibility change:", document.visibilityState);
+        if (document.visibilityState === "hidden") {
+            this.onPageDeactivated();
+        } else {
+            this.onPageActivated();
+        }
+    }
+
+    /**
+     * @param {Gamepad} gamepad
+     */
+    sendPressedEvents(gamepad) {
+        this.buttonStates[gamepad.index].forEach((buttonState, index) => {
+            if (buttonState.pressed) {
+                this.emitButtonEvent(gamepad, { pressed: true, touched: false, value: 1 }, index, EventType.PRESSED);
+            }
+        });
+    }
+
+    sendReleasedEvents(gamepad) {
+        this.buttonStates[gamepad.index].forEach((buttonState, index) => {
+            if (buttonState.pressed) {
+                this.emitButtonEvent(gamepad, { pressed: false, touched: false, value: 0 }, index, EventType.RELEASED);
+            }
+        });
     }
 
     /**
@@ -177,9 +261,8 @@ class GamepadManager {
      */
     onGamepadConnected(event) {
         console.log("Gamepad connected:", event.gamepad);
-        if (!this.buttonStates[event.gamepad.index]) {
-            this.buttonStates[event.gamepad.index] = event.gamepad.buttons.map((button) => new ButtonState(button));
-        }
+        this.buttonStates[event.gamepad.index] = event.gamepad.buttons.map((button) => new ButtonState(button));
+        this.sendPressedEvents(event.gamepad);
         console.log("Current gamepads:", navigator.getGamepads());
         this.maybeStartGamepadLoop();
     }
@@ -190,6 +273,8 @@ class GamepadManager {
     onGamepadDisconnected(event) {
         console.log("Gamepad disconnected:", event.gamepad);
         console.log("Current gamepads:", navigator.getGamepads());
+        this.sendReleasedEvents(event.gamepad);
+        this.buttonStates[event.gamepad.index] = [];
         this.stopGamepadLoop();
     }
 
