@@ -1,0 +1,7 @@
+.right-entry.gamepad-activated {
+    outline: 1px solid red;
+}
+
+.feed-card:focus {
+    outline: 1px solid red;
+}

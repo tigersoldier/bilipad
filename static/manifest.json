@@ -5,13 +5,12 @@
     "description": "Allow you to use gamepad controller to control Bilibili.",
     "permissions": ["scripting"],
     "host_permissions": ["https://*.bilibili.com/*"],
-    "background": {
-        "service_worker": "background.js"
-    },
     "content_scripts": [
         {
             "matches": ["https://*.bilibili.com/*"],
-            "js": ["content.js"]
+            "js": ["content.js"],
+            "css": ["style.css"],
+            "run_at": "document_start"
         }
     ],
     "action": {
