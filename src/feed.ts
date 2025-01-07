@@ -4,19 +4,32 @@ import { GamepadButtonEvent } from "./gamepad";
 const DOM_RECT_EPS = 1e-2;
 
 export class FeedCardList extends ContainerControl<null> {
-    readonly feedCards: FeedCard[];
+    feedCards: FeedCard[];
+    readonly observer: MutationObserver;
 
     constructor(element: HTMLElement) {
         super(element, null);
+        this.feedCards = [];
+        this.updateFeedCards();
+        this.observer = new MutationObserver(this.onMutation.bind(this));
+        this.observer.observe(element.querySelector(".container") as HTMLElement, { childList: true, subtree: false });
+    }
+
+    focus() {
+        this.feedCards[0].focus();
+    }
+
+    onMutation(mutations: MutationRecord[]) {
+        console.log("Mutation:", mutations);
+        this.updateFeedCards();
+    }
+
+    updateFeedCards() {
         const feedCards = document.querySelectorAll(".container > div");
         this.feedCards = [];
         for (let i = 0; i < feedCards.length; i++) {
             this.feedCards.push(new FeedCard(feedCards[i] as HTMLElement, this, i));
         }
-    }
-
-    focus() {
-        this.feedCards[0].focus();
     }
 
     override innerDown(currentIdx: number): boolean {

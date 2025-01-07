@@ -8,7 +8,6 @@ class RootPage extends BaseControl<null> {
     headerControl: HeaderControl | null;
     feedCardList: FeedCardList | null;
     playerControl: PlayerControl | null;
-    readonly observer: MutationObserver | null;
 
     constructor() {
         super(document.body, null);
@@ -20,15 +19,6 @@ class RootPage extends BaseControl<null> {
             this.headerControl = new HeaderControl(headerElement as HTMLElement);
         }
 
-        this.updateFeedCardList();
-        this.updatePlayerControl();
-
-        this.observer = new MutationObserver(this.onMutation.bind(this));
-        this.observer.observe(document.body, { childList: true, subtree: true });
-    }
-
-    onMutation(mutations: MutationRecord[]) {
-        console.log("Mutation:", mutations);
         this.updateFeedCardList();
         this.updatePlayerControl();
     }
