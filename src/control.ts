@@ -5,6 +5,10 @@ export class BaseControl<P extends BaseControl<any> | null> {
         attachControl(element, this);
     }
 
+    focus() {
+        this.element.focus();
+    }
+
     onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
         if (event.eventType === EventType.PRESSED) {
             switch (event.buttonId) {

@@ -3,17 +3,20 @@ import { ButtonId, EventType, GamepadButtonEvent, GamepadManager } from "./gamep
 import { HeaderControl } from "./header";
 import { FeedCardList } from "./feed";
 import { PlayerControl } from "./player";
+import { DynPage } from "./dyn_page";
 
 class RootPage extends BaseControl<null> {
     headerControl: HeaderControl | null;
     feedCardList: FeedCardList | null;
     playerControl: PlayerControl | null;
+    dynamicPage: DynPage | null;
 
     constructor() {
         super(document.body, null);
         this.headerControl = null;
         this.feedCardList = null;
         this.playerControl = null;
+        this.dynamicPage = null;
         const headerElement = /** @type {HTMLElement} */ (document.querySelector(".bili-header"));
         if (headerElement) {
             this.headerControl = new HeaderControl(headerElement as HTMLElement);
@@ -21,6 +24,7 @@ class RootPage extends BaseControl<null> {
 
         this.updateFeedCardList();
         this.updatePlayerControl();
+        this.updateDynamicPage();
     }
 
     updateFeedCardList() {
@@ -37,7 +41,17 @@ class RootPage extends BaseControl<null> {
         }
     }
 
+    updateDynamicPage() {
+        if (window.location.hostname === "t.bilibili.com") {
+            const app = document.querySelector("#app");
+            this.dynamicPage = new DynPage(app as HTMLElement);
+        }
+    }
+
     override onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
+        if (this.dynamicPage) {
+            return this.dynamicPage.onGamepadButtonEvent(event);
+        }
         if (event.eventType !== EventType.PRESSED) {
             return false;
         }

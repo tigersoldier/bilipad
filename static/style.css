@@ -5,3 +5,7 @@
 .feed-card:focus {
     outline: 1px solid red;
 }
+
+.bili-dyn-item:focus {
+    outline: 1px solid red;
+}

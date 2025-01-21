@@ -15,7 +15,7 @@ export class FeedCardList extends ContainerControl<null> {
         this.observer.observe(element.querySelector(".container") as HTMLElement, { childList: true, subtree: false });
     }
 
-    focus() {
+    override focus() {
         this.feedCards[0].focus();
     }
 
