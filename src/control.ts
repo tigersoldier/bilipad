@@ -106,3 +106,49 @@ export function attachControl(element: Element, control: BaseControl<any>) {
 export function getControl(element: Element): BaseControl<any> | undefined {
     return (element as any).biliCtrl;
 }
+
+export function getOrObserveElement(root: Element, selectors: string[], callback: (element: HTMLElement) => void) {
+    if (selectors.length === 0) {
+        console.error("No selectors provided on element", root);
+        return;
+    }
+    const selector = selectors[0];
+    const element = root.querySelector(selector);
+    const onElementFound = (element: Element) => {
+        const isLast = selectors.length === 1;
+        if (isLast) {
+            callback(element as HTMLElement);
+        } else {
+            getOrObserveElement(element, selectors.slice(1), callback);
+        }
+    }
+    if (element) {
+        console.log("Found element directly", root, selector, element);
+        onElementFound(element);
+        return;
+    }
+    console.log("Observing element", root, selector);
+    const observer = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+            for (const node of mutation.addedNodes) {
+                if (node.nodeType !== Node.ELEMENT_NODE) {
+                    continue;
+                }
+                const element = node as Element;
+                let foundElement: Element | null = null;
+                if (element.matches(selector)) {
+                    foundElement = element;
+                } else {
+                    foundElement = element.querySelector(selector);
+                }
+                if (foundElement) {
+                    console.log("Found element", root, selector, foundElement);
+                    onElementFound(foundElement);
+                    observer.disconnect();
+                    return;
+                }
+            }
+        }
+    });
+    observer.observe(root, { childList: true, subtree: true });
+}

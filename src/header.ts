@@ -1,4 +1,4 @@
-import { BaseControl } from "./control";
+import { BaseControl, getOrObserveElement } from "./control";
 import { ButtonId, EventType, GamepadButtonEvent } from "./gamepad";
 
 export class HeaderControl extends BaseControl<null> {
@@ -6,8 +6,12 @@ export class HeaderControl extends BaseControl<null> {
 
     constructor(element: HTMLElement) {
         super(element, null);
-        const rightEntry = document.querySelector(".right-entry");
-        if (rightEntry) {
+        getOrObserveElement(element, [".right-entry"], (element) => {
+            this.handleRightEntry(element as HTMLElement);
+        });
+    }
+
+    private handleRightEntry(rightEntry: HTMLElement) {
             // Iterate over the child elements of the right entry
             for (let i = 0; i < rightEntry.childNodes.length; i++) {
                 const child = rightEntry.childNodes[i];
@@ -21,12 +25,11 @@ export class HeaderControl extends BaseControl<null> {
                     console.log("No anchor found for right entry child", child);
                     continue;
                 }
-                if (anchor.href.includes("t.bilibili.com")) {
+                if (anchor.hostname === "t.bilibili.com") {
                     console.log("Found fav menu", child);
-                    this.favMenu = new HeaderEntry(childElement, anchor.href, this);
+                    this.favMenu = new HeaderEntry(childElement, this, anchor.href, "images/gamepad_button_a.svg");
                 }
             }
-        }
     }
 
     override onGamepadButtonEvent(event: GamepadButtonEvent) {
@@ -42,11 +45,22 @@ export class HeaderControl extends BaseControl<null> {
         }
         return false;
     }
+
+    setShowGamepadButtons(show: boolean) {
+        this.element.classList.toggle("bilipad-show-gamepad-buttons", show);
+    }
 }
 
 class HeaderEntry extends BaseControl<HeaderControl> {
-    constructor(element: HTMLElement, readonly url: string, parent: HeaderControl) {
+    constructor(element: HTMLElement, parent: HeaderControl, readonly url: string, buttonImagePath: string) {
         super(element, parent);
+        const button = document.createElement("img");
+        const buttonImageUrl = chrome.runtime.getURL(buttonImagePath);
+        console.log("buttonImageUrl", buttonImageUrl);
+        button.src = buttonImageUrl;
+        button.classList.add("bilipad-gamepad-button");
+        button.classList.add("bilipad-gamepad-button-a");
+        element.appendChild(button);
     }
 
     override onActionButtonPressed(event: GamepadButtonEvent): boolean {

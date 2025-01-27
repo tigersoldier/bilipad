@@ -4,6 +4,7 @@ import { HeaderControl } from "./header";
 import { FeedCardList } from "./feed";
 import { PlayerControl } from "./player";
 import { DynPage } from "./dyn_page";
+import { getOrObserveElement } from "./control";
 
 class RootPage extends BaseControl<null> {
     headerControl: HeaderControl | null;
@@ -17,10 +18,9 @@ class RootPage extends BaseControl<null> {
         this.feedCardList = null;
         this.playerControl = null;
         this.dynamicPage = null;
-        const headerElement = /** @type {HTMLElement} */ (document.querySelector(".bili-header"));
-        if (headerElement) {
-            this.headerControl = new HeaderControl(headerElement as HTMLElement);
-        }
+        getOrObserveElement(document.body, [".bili-header"], (element) => {
+            this.headerControl = new HeaderControl(element as HTMLElement);
+        });
 
         this.updateFeedCardList();
         this.updatePlayerControl();
@@ -87,8 +87,14 @@ export class Bibibili {
         if (event.buttonId === ButtonId.LT) {
             if (event.eventType === EventType.PRESSED) {
                 this.ltPressed = true;
+                if (this.rootPage.headerControl) {
+                    this.rootPage.headerControl.setShowGamepadButtons(true);
+                }
             } else if (event.eventType === EventType.RELEASED) {
                 this.ltPressed = false;
+                if (this.rootPage.headerControl) {
+                    this.rootPage.headerControl.setShowGamepadButtons(false);
+                }
             }
             return;
         }
@@ -115,6 +121,9 @@ export class Bibibili {
      * @returns {BaseControl | null}
      */
     getFocusedControl() {
+        if (this.ltPressed) {
+            return this.rootPage.headerControl;
+        }
         const focusedElement = document.activeElement;
         console.log("Focused HTLM element:", focusedElement);
         if (!focusedElement) {
