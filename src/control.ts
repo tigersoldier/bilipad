@@ -1,154 +1,183 @@
 import { ButtonId, EventType, GamepadButtonEvent } from "./gamepad";
 
-export class BaseControl<P extends BaseControl<any> | null> {
-    constructor(readonly element: HTMLElement, readonly parent: P) {
-        attachControl(element, this);
-    }
+export class BaseControl {
+  constructor(
+    readonly element: HTMLElement,
+    readonly parent: BaseControl | null,
+  ) {
+    attachControl(element, this);
+  }
 
-    focus() {
-        this.element.focus();
-    }
+  focus() {
+    this.element.focus();
+  }
 
-    onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
-        if (event.eventType === EventType.PRESSED) {
-            switch (event.buttonId) {
-                case ButtonId.A:
-                    return this.onActionButtonPressed(event);
-            }
-        }
-        return false;
+  onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
+    if (event.eventType === EventType.PRESSED) {
+      switch (event.buttonId) {
+        case ButtonId.A:
+          return this.onActionButtonPressed(event);
+      }
     }
+    return false;
+  }
 
-    onActionButtonPressed(event: GamepadButtonEvent): boolean {
-        return false;
-    }
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onActionButtonPressed(event: GamepadButtonEvent): boolean {
+    return false;
+  }
 }
 
 // For mixin typing. See https://www.typescriptlang.org/docs/handbook/mixins.html
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Constructor<T> = new (...args: any[]) => T;
+
+export class BaseContainerChildControl extends BaseControl {
+  constructor(element: HTMLElement, parent: ContainerControl) {
+    super(element, parent);
+  }
+
+  protected getContainer(): ContainerControl {
+    return this.parent as ContainerControl;
+  }
+}
 
 /**
  * A mixin to add container child control functionality to a class.
  */
-export function ContainerChildControl<TBase extends Constructor<BaseControl<any>>>(Base: TBase) {
-    return class extends Base {
-        index: number = 0;
+export function ContainerChildControl<
+  TBase extends Constructor<BaseContainerChildControl>,
+>(Base: TBase) {
+  return class extends Base {
+    index: number = 0;
 
-        down() {
-            return this.parent.innerDown(this.index);
-        }
-
-        up() {
-            return this.parent.innerUp(this.index);
-        }
-
-        left() {
-            return this.parent.innerLeft(this.index);
-        }
-
-        right() {
-            return this.parent.innerRight(this.index);
-        }
-
-        override onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
-            if (event.eventType === EventType.PRESSED || event.eventType === EventType.REPEAT) {
-                switch (event.buttonId) {
-                    case ButtonId.DPAD_DOWN:
-                        return this.down();
-                    case ButtonId.DPAD_UP:
-                        return this.up();
-                    case ButtonId.DPAD_LEFT:
-                        return this.left();
-                    case ButtonId.DPAD_RIGHT:
-                        return this.right();
-                }
-            }
-            return super.onGamepadButtonEvent(event);
-        }
+    down() {
+      return this.getContainer().innerDown(this.index);
     }
+
+    up() {
+      return this.getContainer().innerUp(this.index);
+    }
+
+    left() {
+      return this.getContainer().innerLeft(this.index);
+    }
+
+    right() {
+      return this.getContainer().innerRight(this.index);
+    }
+
+    override onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
+      if (
+        event.eventType === EventType.PRESSED ||
+        event.eventType === EventType.REPEAT
+      ) {
+        switch (event.buttonId) {
+          case ButtonId.DPAD_DOWN:
+            return this.down();
+          case ButtonId.DPAD_UP:
+            return this.up();
+          case ButtonId.DPAD_LEFT:
+            return this.left();
+          case ButtonId.DPAD_RIGHT:
+            return this.right();
+        }
+      }
+      return super.onGamepadButtonEvent(event);
+    }
+  };
 }
 
-export class ContainerControl<P extends BaseControl<any> | null> extends BaseControl<P> {
-    /**
-     * @returns if the button is handled
-     */
-    innerDown(currentIdx: number): boolean {
-        return false;
-    }
+export class ContainerControl extends BaseControl {
+  /**
+   * @returns if the button is handled
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  innerDown(currentIdx: number): boolean {
+    return false;
+  }
 
-    /**
-     * @returns if the button is handled
-     */
-    innerUp(currentIdx: number): boolean {
-        return false;
-    }
+  /**
+   * @returns if the button is handled
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  innerUp(currentIdx: number): boolean {
+    return false;
+  }
 
-    /**
-     * @returns if the button is handled
-     */
-    innerLeft(currentIdx: number): boolean {
-        return false;
-    }
+  /**
+   * @returns if the button is handled
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  innerLeft(currentIdx: number): boolean {
+    return false;
+  }
 
-    /**
-     * @returns if the button is handled
-     */
-    innerRight(currentIdx: number): boolean {
-        return false;
-    }
+  /**
+   * @returns if the button is handled
+   */
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  innerRight(currentIdx: number): boolean {
+    return false;
+  }
 }
 
-
-export function attachControl(element: Element, control: BaseControl<any>) {
-    (element as any).biliCtrl = control;
+export function attachControl(element: Element, control: BaseControl) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (element as any).biliCtrl = control;
 }
 
-export function getControl(element: Element): BaseControl<any> | undefined {
-    return (element as any).biliCtrl;
+export function getControl(element: Element): BaseControl | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (element as any).biliCtrl;
 }
 
-export function getOrObserveElement(root: Element, selectors: string[], callback: (element: HTMLElement) => void) {
-    if (selectors.length === 0) {
-        console.error("No selectors provided on element", root);
-        return;
+export function getOrObserveElement(
+  root: Element,
+  selectors: string[],
+  callback: (element: HTMLElement) => void,
+) {
+  if (selectors.length === 0) {
+    console.error("No selectors provided on element", root);
+    return;
+  }
+  const selector = selectors[0];
+  const element = root.querySelector(selector);
+  const onElementFound = (element: Element) => {
+    const isLast = selectors.length === 1;
+    if (isLast) {
+      callback(element as HTMLElement);
+    } else {
+      getOrObserveElement(element, selectors.slice(1), callback);
     }
-    const selector = selectors[0];
-    const element = root.querySelector(selector);
-    const onElementFound = (element: Element) => {
-        const isLast = selectors.length === 1;
-        if (isLast) {
-            callback(element as HTMLElement);
+  };
+  if (element) {
+    console.log("Found element directly", root, selector, element);
+    onElementFound(element);
+    return;
+  }
+  console.log("Observing element", root, selector);
+  const observer = new MutationObserver((mutations) => {
+    for (const mutation of mutations) {
+      for (const node of mutation.addedNodes) {
+        if (node.nodeType !== Node.ELEMENT_NODE) {
+          continue;
+        }
+        const element = node as Element;
+        let foundElement: Element | null = null;
+        if (element.matches(selector)) {
+          foundElement = element;
         } else {
-            getOrObserveElement(element, selectors.slice(1), callback);
+          foundElement = element.querySelector(selector);
         }
-    }
-    if (element) {
-        console.log("Found element directly", root, selector, element);
-        onElementFound(element);
-        return;
-    }
-    console.log("Observing element", root, selector);
-    const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-            for (const node of mutation.addedNodes) {
-                if (node.nodeType !== Node.ELEMENT_NODE) {
-                    continue;
-                }
-                const element = node as Element;
-                let foundElement: Element | null = null;
-                if (element.matches(selector)) {
-                    foundElement = element;
-                } else {
-                    foundElement = element.querySelector(selector);
-                }
-                if (foundElement) {
-                    console.log("Found element", root, selector, foundElement);
-                    onElementFound(foundElement);
-                    observer.disconnect();
-                    return;
-                }
-            }
+        if (foundElement) {
+          console.log("Found element", root, selector, foundElement);
+          onElementFound(foundElement);
+          observer.disconnect();
+          return;
         }
-    });
-    observer.observe(root, { childList: true, subtree: true });
+      }
+    }
+  });
+  observer.observe(root, { childList: true, subtree: true });
 }
