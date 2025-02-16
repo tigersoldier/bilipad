@@ -3,6 +3,7 @@ on:
     branches:
       - main
 
+name: Lint and Build
 jobs:
   lint-and-build:
     name: Lint and Build
