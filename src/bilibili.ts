@@ -3,6 +3,7 @@ import {
   ButtonId,
   EventType,
   GamepadButtonEvent,
+  GamepadJoystickEvent,
   GamepadManager,
 } from "./gamepad";
 import { HeaderControl } from "./header";
@@ -84,8 +85,11 @@ export class Bibibili {
   ltPressed = false;
 
   constructor() {
-    this.gamepadManager.addEventListener((event: GamepadButtonEvent) =>
+    this.gamepadManager.addButtonEventListener((event: GamepadButtonEvent) =>
       this.onGamepadButtonEvent(event),
+    );
+    this.gamepadManager.addJoystickEventListener((event: GamepadJoystickEvent) =>
+      this.onGamepadJoystickEvent(event),
     );
   }
 
@@ -124,6 +128,22 @@ export class Bibibili {
     }
   }
 
+  onGamepadJoystickEvent(event: GamepadJoystickEvent) {
+    let control = this.getFocusedControl();
+    if (!control) {
+      control = this.rootPage;
+    }
+    if (!control) {
+      return;
+    }
+    while (control) {
+      if (control.onGamepadJoystickEvent(event)) {
+        return;
+      }
+      control = control.parent;
+    }
+  }
+
   /**
    * @returns {BaseControl | null}
    */
@@ -132,7 +152,6 @@ export class Bibibili {
       return this.rootPage.headerControl;
     }
     const focusedElement = document.activeElement;
-    console.log("Focused HTLM element:", focusedElement);
     if (!focusedElement) {
       return null;
     }

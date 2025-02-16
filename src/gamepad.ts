@@ -1,3 +1,4 @@
+// See https://w3c.github.io/gamepad/#dfn-standard-gamepad
 export enum ButtonId {
   A = 0,
   B = 1,
@@ -16,6 +17,26 @@ export enum ButtonId {
   DPAD_LEFT = 14,
   DPAD_RIGHT = 15,
   POWER = 16,
+}
+
+export enum AxisId {
+  LEFT_X = 0,
+  LEFT_Y = 1,
+  RIGHT_X = 2,
+  RIGHT_Y = 3,
+}
+
+export enum Joystick {
+  LEFT,
+  RIGHT,
+}
+
+export enum JoystickDirection {
+  NONE,
+  UP,
+  DOWN,
+  LEFT,
+  RIGHT,
 }
 
 export const ButtonName = {
@@ -45,9 +66,15 @@ export enum EventType {
   PRESSED = 0,
   RELEASED = 1,
   REPEAT = 2,
+  /** 
+   * The button is pressed and held. i.e. it's between the pressed and repeat/released events.
+   * 
+   * This event only applies to the pseudo-buttons for axes.
+   */
+  HOLD = 3,
 }
 
-export class ButtonState {
+class ButtonState {
   pressed: boolean;
   updateTimeMs: number;
   nextRepeatTimeMs: number;
@@ -86,7 +113,107 @@ export class ButtonState {
   }
 }
 
-export class Listener {
+class JoyStickState {
+  updateTimeMs: number = Date.now();
+  lastDurationMs: number = 0;
+  eventTypes: Map<JoystickDirection, EventType> = new Map();
+  lastXEventTriggerTimeMs: number = 0;
+  xRepeated: boolean = false;
+  lastYEventTriggerTimeMs: number = 0;
+  yRepeated: boolean = false;
+
+  constructor(readonly gamePad: Gamepad, readonly joystick: Joystick) {
+    this.eventTypes.set(JoystickDirection.UP, EventType.RELEASED);
+    this.eventTypes.set(JoystickDirection.DOWN, EventType.RELEASED);
+    this.eventTypes.set(JoystickDirection.LEFT, EventType.RELEASED);
+    this.eventTypes.set(JoystickDirection.RIGHT, EventType.RELEASED);
+  }
+
+  updateState(xValue: number, yValue: number): GamepadJoystickEvent {
+    const durationMs = Date.now() - this.updateTimeMs;
+    this.lastDurationMs = durationMs;
+    this.updateTimeMs = Date.now();
+    let xDirection = JoystickDirection.NONE;
+    if (xValue >= 0.5) {
+      xDirection = JoystickDirection.RIGHT;
+    } else {
+      this.eventTypes.set(JoystickDirection.RIGHT, EventType.RELEASED);
+    }
+    if (xValue <= -0.5) {
+      xDirection = JoystickDirection.LEFT;
+    } else {
+      this.eventTypes.set(JoystickDirection.LEFT, EventType.RELEASED);
+    }
+
+    if (xDirection !== JoystickDirection.NONE) {
+      const newEventType = this.calculatePressedButtonEventType(
+        this.eventTypes.get(xDirection)!, this.lastXEventTriggerTimeMs, this.updateTimeMs, this.xRepeated);
+      this.eventTypes.set(xDirection, newEventType);
+      if (newEventType === EventType.PRESSED || newEventType === EventType.REPEAT) {
+        console.log("New X axis triggered:",xDirection, newEventType);
+        this.lastXEventTriggerTimeMs = this.updateTimeMs;
+        this.xRepeated = newEventType === EventType.REPEAT;
+      }
+    }
+
+    let yDirection = JoystickDirection.NONE;
+    if (yValue >= 0.5) {
+      yDirection = JoystickDirection.DOWN;
+    } else {
+      this.eventTypes.set(JoystickDirection.DOWN, EventType.RELEASED);
+    }
+    if (yValue <= -0.5) {
+      yDirection = JoystickDirection.UP;
+    } else {
+      this.eventTypes.set(JoystickDirection.UP, EventType.RELEASED);
+    }
+
+    if (yDirection !== JoystickDirection.NONE) {
+      const newEventType = this.calculatePressedButtonEventType(
+        this.eventTypes.get(yDirection)!, this.lastYEventTriggerTimeMs, this.updateTimeMs, this.yRepeated);
+      this.eventTypes.set(yDirection, newEventType);
+      if (newEventType === EventType.PRESSED || newEventType === EventType.REPEAT) {
+        console.log("New Y axis triggered:", newEventType);
+        this.lastYEventTriggerTimeMs = this.updateTimeMs;
+        this.yRepeated = newEventType === EventType.REPEAT;
+      }
+    }
+
+    const xAbs = Math.abs(xValue);
+    const yAbs = Math.abs(yValue);
+    let dominantDirection = JoystickDirection.NONE;
+    if (xAbs > yAbs) {
+      dominantDirection = xDirection;
+    } else {
+      dominantDirection = yDirection;
+    }
+
+    return new GamepadJoystickEvent(
+      this.gamePad,
+      this.joystick,
+      xValue,
+      yValue,
+      this.eventTypes.get(JoystickDirection.UP)!,
+      this.eventTypes.get(JoystickDirection.DOWN)!,
+      this.eventTypes.get(JoystickDirection.LEFT)!,
+      this.eventTypes.get(JoystickDirection.RIGHT)!,
+      dominantDirection,
+    );
+  }
+
+  private calculatePressedButtonEventType(oldEventType: EventType, lastEventTriggerTimeMs: number, currentTimeMs: number, repeated: boolean): EventType {
+    if (oldEventType === EventType.RELEASED) {
+      return EventType.PRESSED;
+    }
+    const repeatThresholdMs = repeated ? REPEAT_INTERVAL_MS : INITIAL_REPEAT_DELAY_MS;
+    if (currentTimeMs - lastEventTriggerTimeMs > repeatThresholdMs) {
+      return EventType.REPEAT;
+    }
+    return EventType.HOLD;
+  }
+}
+
+export class ButtonEventListener {
   readonly func: (gamepadButtonEvent: GamepadButtonEvent) => void;
 
   constructor(func: (gamepadButtonEvent: GamepadButtonEvent) => void) {
@@ -95,6 +222,18 @@ export class Listener {
 
   emit(gamepadButtonEvent: GamepadButtonEvent) {
     this.func(gamepadButtonEvent);
+  }
+}
+
+export class JoystickEventListener {
+  readonly func: (gamepadJoystickEvent: GamepadJoystickEvent) => void;
+
+  constructor(func: (gamepadJoystickEvent: GamepadJoystickEvent) => void) {
+    this.func = func;
+  }
+
+  emit(gamepadJoystickEvent: GamepadJoystickEvent) {
+    this.func(gamepadJoystickEvent);
   }
 }
 
@@ -107,12 +246,38 @@ export class GamepadButtonEvent {
   ) {}
 }
 
+export class GamepadJoystickEvent {
+  constructor(
+    readonly gamepad: Gamepad,
+    readonly joystick: Joystick,
+    readonly xAxis: number,
+    readonly yAxis: number,
+    // If x axis considered as a button, the event type of the button
+    // 0.5 is used as the threshold for button pressed
+    readonly upEventType: EventType,
+    readonly downEventType: EventType,
+    // If y axis considered as a button, the event type of the button
+    // 0.5 is used as the threshold for button pressed
+    readonly leftEventType: EventType,
+    readonly rightEventType: EventType,
+    /** The dominant direction of the joystick. */
+    readonly dominantDirection: JoystickDirection,
+  ) {}
+}
+
 export class GamepadManager {
   // This should be a number in browser. I can't find out a way to get the Typescript ignore the typing
   // from @types/node.
   private gamepadHandle: NodeJS.Timeout | null;
   private buttonStates: Record<string, ButtonState[]>;
-  private eventListeners: Listener[];
+  /**
+   * The states of the joysticks of each gamepad.
+   * The key is the index of the gamepad.
+   * The value is a map of the joysticks to their states.
+   */
+  private joystickStates: Record<string, Record<Joystick, JoyStickState>>;
+  private buttonEventListeners: ButtonEventListener[];
+  private joystickEventListeners: JoystickEventListener[];
 
   constructor() {
     this.gamepadHandle = null;
@@ -127,7 +292,9 @@ export class GamepadManager {
     );
     this.maybeStartGamepadLoop();
     this.buttonStates = {};
-    this.eventListeners = [];
+    this.joystickStates = {};
+    this.buttonEventListeners = [];
+    this.joystickEventListeners = [];
     // Listen to the page inactive event
     document.addEventListener(
       "visibilitychange",
@@ -208,6 +375,24 @@ export class GamepadManager {
           this.emitButtonEvent(gamepad, button, index, eventType);
         }
       });
+      if (gamepad.axes.length >= 2) {
+        const xAxis = gamepad.axes[0];
+        const yAxis = gamepad.axes[1];
+        const joystickState = this.joystickStates[gamepad.index][Joystick.LEFT];
+        const joystickEvent = joystickState.updateState(xAxis, yAxis);
+        if (joystickEvent) {
+          this.emitJoystickEvent(joystickEvent);
+        }
+      }
+      if (gamepad.axes.length >= 4) {
+        const xAxis = gamepad.axes[2];
+        const yAxis = gamepad.axes[3];
+        const joystickState = this.joystickStates[gamepad.index][Joystick.RIGHT];
+        const joystickEvent = joystickState.updateState(xAxis, yAxis);
+        if (joystickEvent) {
+          this.emitJoystickEvent(joystickEvent);
+        }
+      }
     }
   }
 
@@ -218,7 +403,11 @@ export class GamepadManager {
     eventType: EventType,
   ) {
     const event = new GamepadButtonEvent(gamepad, button, buttonId, eventType);
-    this.eventListeners.forEach((listener) => listener.emit(event));
+    this.buttonEventListeners.forEach((listener) => listener.emit(event));
+  }
+
+  emitJoystickEvent(event: GamepadJoystickEvent) {
+    this.joystickEventListeners.forEach((listener) => listener.emit(event));
   }
 
   onVisibilityChange() {
@@ -261,6 +450,10 @@ export class GamepadManager {
     this.buttonStates[event.gamepad.index] = event.gamepad.buttons.map(
       (button) => new ButtonState(button),
     );
+    this.joystickStates[event.gamepad.index] = {
+      [Joystick.LEFT]: new JoyStickState(event.gamepad, Joystick.LEFT),
+      [Joystick.RIGHT]: new JoyStickState(event.gamepad, Joystick.RIGHT),
+    };
     this.sendPressedEvents(event.gamepad);
     console.log("Current gamepads:", navigator.getGamepads());
     this.maybeStartGamepadLoop();
@@ -274,15 +467,32 @@ export class GamepadManager {
     this.stopGamepadLoop();
   }
 
-  addEventListener(func: (event: GamepadButtonEvent) => void): {
+  addButtonEventListener(func: (event: GamepadButtonEvent) => void): {
     remove: () => void;
   } {
-    const listener = new Listener(func);
-    this.eventListeners.push(listener);
+    const listener = new ButtonEventListener(func);
+    this.buttonEventListeners.push(listener);
 
     return {
       remove: () => {
-        const listeners = this.eventListeners;
+        const listeners = this.buttonEventListeners;
+        if (!listeners) {
+          return;
+        }
+        listeners.splice(listeners.indexOf(listener), 1);
+      },
+    };
+  }
+
+  addJoystickEventListener(func: (event: GamepadJoystickEvent) => void): {
+    remove: () => void;
+  } {
+    const listener = new JoystickEventListener(func);
+    this.joystickEventListeners.push(listener);
+
+    return {
+      remove: () => {
+        const listeners = this.joystickEventListeners;
         if (!listeners) {
           return;
         }
