@@ -66,9 +66,9 @@ export enum EventType {
   PRESSED = 0,
   RELEASED = 1,
   REPEAT = 2,
-  /** 
+  /**
    * The button is pressed and held. i.e. it's between the pressed and repeat/released events.
-   * 
+   *
    * This event only applies to the pseudo-buttons for axes.
    */
   HOLD = 3,
@@ -122,7 +122,10 @@ class JoyStickState {
   lastYEventTriggerTimeMs: number = 0;
   yRepeated: boolean = false;
 
-  constructor(readonly gamePad: Gamepad, readonly joystick: Joystick) {
+  constructor(
+    readonly gamePad: Gamepad,
+    readonly joystick: Joystick,
+  ) {
     this.eventTypes.set(JoystickDirection.UP, EventType.RELEASED);
     this.eventTypes.set(JoystickDirection.DOWN, EventType.RELEASED);
     this.eventTypes.set(JoystickDirection.LEFT, EventType.RELEASED);
@@ -147,10 +150,17 @@ class JoyStickState {
 
     if (xDirection !== JoystickDirection.NONE) {
       const newEventType = this.calculatePressedButtonEventType(
-        this.eventTypes.get(xDirection)!, this.lastXEventTriggerTimeMs, this.updateTimeMs, this.xRepeated);
+        this.eventTypes.get(xDirection)!,
+        this.lastXEventTriggerTimeMs,
+        this.updateTimeMs,
+        this.xRepeated,
+      );
       this.eventTypes.set(xDirection, newEventType);
-      if (newEventType === EventType.PRESSED || newEventType === EventType.REPEAT) {
-        console.log("New X axis triggered:",xDirection, newEventType);
+      if (
+        newEventType === EventType.PRESSED ||
+        newEventType === EventType.REPEAT
+      ) {
+        console.log("New X axis triggered:", xDirection, newEventType);
         this.lastXEventTriggerTimeMs = this.updateTimeMs;
         this.xRepeated = newEventType === EventType.REPEAT;
       }
@@ -170,9 +180,16 @@ class JoyStickState {
 
     if (yDirection !== JoystickDirection.NONE) {
       const newEventType = this.calculatePressedButtonEventType(
-        this.eventTypes.get(yDirection)!, this.lastYEventTriggerTimeMs, this.updateTimeMs, this.yRepeated);
+        this.eventTypes.get(yDirection)!,
+        this.lastYEventTriggerTimeMs,
+        this.updateTimeMs,
+        this.yRepeated,
+      );
       this.eventTypes.set(yDirection, newEventType);
-      if (newEventType === EventType.PRESSED || newEventType === EventType.REPEAT) {
+      if (
+        newEventType === EventType.PRESSED ||
+        newEventType === EventType.REPEAT
+      ) {
         console.log("New Y axis triggered:", newEventType);
         this.lastYEventTriggerTimeMs = this.updateTimeMs;
         this.yRepeated = newEventType === EventType.REPEAT;
@@ -201,11 +218,18 @@ class JoyStickState {
     );
   }
 
-  private calculatePressedButtonEventType(oldEventType: EventType, lastEventTriggerTimeMs: number, currentTimeMs: number, repeated: boolean): EventType {
+  private calculatePressedButtonEventType(
+    oldEventType: EventType,
+    lastEventTriggerTimeMs: number,
+    currentTimeMs: number,
+    repeated: boolean,
+  ): EventType {
     if (oldEventType === EventType.RELEASED) {
       return EventType.PRESSED;
     }
-    const repeatThresholdMs = repeated ? REPEAT_INTERVAL_MS : INITIAL_REPEAT_DELAY_MS;
+    const repeatThresholdMs = repeated
+      ? REPEAT_INTERVAL_MS
+      : INITIAL_REPEAT_DELAY_MS;
     if (currentTimeMs - lastEventTriggerTimeMs > repeatThresholdMs) {
       return EventType.REPEAT;
     }
@@ -387,7 +411,8 @@ export class GamepadManager {
       if (gamepad.axes.length >= 4) {
         const xAxis = gamepad.axes[2];
         const yAxis = gamepad.axes[3];
-        const joystickState = this.joystickStates[gamepad.index][Joystick.RIGHT];
+        const joystickState =
+          this.joystickStates[gamepad.index][Joystick.RIGHT];
         const joystickEvent = joystickState.updateState(xAxis, yAxis);
         if (joystickEvent) {
           this.emitJoystickEvent(joystickEvent);

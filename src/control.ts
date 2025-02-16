@@ -1,4 +1,11 @@
-import { ButtonId, EventType, GamepadButtonEvent, GamepadJoystickEvent, Joystick, JoystickDirection } from "./gamepad";
+import {
+  ButtonId,
+  EventType,
+  GamepadButtonEvent,
+  GamepadJoystickEvent,
+  Joystick,
+  JoystickDirection,
+} from "./gamepad";
 
 export class BaseControl {
   constructor(
@@ -57,7 +64,12 @@ export class BaseControl {
     if (eventType === EventType.HOLD) {
       // Do nothing for hold event.
     } else {
-      const buttonEvent = new GamepadButtonEvent(event.gamepad, button, dpadButton, eventType);
+      const buttonEvent = new GamepadButtonEvent(
+        event.gamepad,
+        button,
+        dpadButton,
+        eventType,
+      );
       console.log("Firing button event for Joystick event", buttonEvent, event);
       return this.onGamepadButtonEvent(buttonEvent);
     }

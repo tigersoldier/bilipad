@@ -88,8 +88,8 @@ export class Bibibili {
     this.gamepadManager.addButtonEventListener((event: GamepadButtonEvent) =>
       this.onGamepadButtonEvent(event),
     );
-    this.gamepadManager.addJoystickEventListener((event: GamepadJoystickEvent) =>
-      this.onGamepadJoystickEvent(event),
+    this.gamepadManager.addJoystickEventListener(
+      (event: GamepadJoystickEvent) => this.onGamepadJoystickEvent(event),
     );
   }
 
