@@ -1,4 +1,11 @@
-import { ButtonId, EventType, GamepadButtonEvent } from "./gamepad";
+import {
+  ButtonId,
+  EventType,
+  GamepadButtonEvent,
+  GamepadJoystickEvent,
+  Joystick,
+  JoystickDirection,
+} from "./gamepad";
 
 export class BaseControl {
   constructor(
@@ -18,6 +25,53 @@ export class BaseControl {
         case ButtonId.A:
           return this.onActionButtonPressed(event);
       }
+    }
+    return false;
+  }
+
+  onGamepadJoystickEvent(event: GamepadJoystickEvent): boolean {
+    // By default, treat the left joystick as D-pad.
+    if (event.joystick !== Joystick.LEFT) {
+      return false;
+    }
+    let dpadButton: ButtonId | null = null;
+    const button: GamepadButton = {
+      pressed: true,
+      value: 1,
+      touched: false,
+    };
+    let eventType: EventType | null = null;
+    switch (event.dominantDirection) {
+      case JoystickDirection.NONE:
+        return false;
+      case JoystickDirection.UP:
+        dpadButton = ButtonId.DPAD_UP;
+        eventType = event.upEventType;
+        break;
+      case JoystickDirection.DOWN:
+        dpadButton = ButtonId.DPAD_DOWN;
+        eventType = event.downEventType;
+        break;
+      case JoystickDirection.LEFT:
+        dpadButton = ButtonId.DPAD_LEFT;
+        eventType = event.leftEventType;
+        break;
+      case JoystickDirection.RIGHT:
+        dpadButton = ButtonId.DPAD_RIGHT;
+        eventType = event.rightEventType;
+        break;
+    }
+    if (eventType === EventType.HOLD) {
+      // Do nothing for hold event.
+    } else {
+      const buttonEvent = new GamepadButtonEvent(
+        event.gamepad,
+        button,
+        dpadButton,
+        eventType,
+      );
+      console.log("Firing button event for Joystick event", buttonEvent, event);
+      return this.onGamepadButtonEvent(buttonEvent);
     }
     return false;
   }
