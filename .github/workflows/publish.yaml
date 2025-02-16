@@ -1,0 +1,27 @@
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm install
+      - run: npm run build
+      - name: Zip the dist folder
+        id: zip-dist
+        run: |
+          DATE=$(date +%Y%m%d)
+          zip -r bilibili-gamepad-control-${DATE}.crx dist
+          echo "zip_file=bilibili-gamepad-control-${DATE}.crx" >> $GITHUB_OUTPUT
+      - name: Upload the zip file
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.zip-dist.outputs.zip_file }}
+          path: ${{ steps.zip-dist.outputs.zip_file }}
