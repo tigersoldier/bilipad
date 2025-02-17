@@ -2,6 +2,7 @@ import {
   ContainerControl,
   ContainerChildControl,
   BaseContainerChildControl,
+  BaseControl,
 } from "./control";
 import { GamepadButtonEvent, EventType, ButtonId } from "./gamepad";
 const LIST_ITEM_CLASS = "bili-dyn-list__item";
@@ -9,8 +10,8 @@ const LIST_ITEM_CLASS = "bili-dyn-list__item";
 export class DynamicList extends ContainerControl {
   readonly items: DynamicListItem[] = [];
 
-  constructor(element: HTMLElement) {
-    super(element, null);
+  constructor(element: HTMLElement, parent: BaseControl) {
+    super(element, parent);
     // observe the children of the element
     const observer = new MutationObserver((mutations) =>
       this.onMutations(mutations),

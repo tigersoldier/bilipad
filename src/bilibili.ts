@@ -11,12 +11,14 @@ import { FeedCardList } from "./feed";
 import { PlayerControl } from "./player";
 import { DynPage } from "./dyn_page";
 import { getOrObserveElement } from "./control";
+import { SearchPanel } from "./search";
 
 class RootPage extends BaseControl {
   headerControl: HeaderControl | null;
   feedCardList: FeedCardList | null;
   playerControl: PlayerControl | null;
   dynamicPage: DynPage | null;
+  searchPanel: SearchPanel | null;
 
   constructor() {
     super(document.body, null);
@@ -24,6 +26,7 @@ class RootPage extends BaseControl {
     this.feedCardList = null;
     this.playerControl = null;
     this.dynamicPage = null;
+    this.searchPanel = null;
     getOrObserveElement(document.body, [".bili-header"], (element) => {
       this.headerControl = new HeaderControl(element as HTMLElement);
     });
@@ -31,27 +34,42 @@ class RootPage extends BaseControl {
     this.updateFeedCardList();
     this.updatePlayerControl();
     this.updateDynamicPage();
+    this.updateSearchPanel();
   }
 
   updateFeedCardList() {
     const feedCardList = document.querySelector(".feed2");
     if (feedCardList) {
-      this.feedCardList = new FeedCardList(feedCardList as HTMLElement);
+      this.feedCardList = new FeedCardList(feedCardList as HTMLElement, this);
     }
   }
 
   updatePlayerControl() {
     const playerElement = document.querySelector("#bilibili-player");
     if (playerElement) {
-      this.playerControl = new PlayerControl(playerElement as HTMLElement);
+      this.playerControl = new PlayerControl(
+        playerElement as HTMLElement,
+        this,
+      );
     }
   }
 
   updateDynamicPage() {
     if (window.location.hostname === "t.bilibili.com") {
       const app = document.querySelector("#app");
-      this.dynamicPage = new DynPage(app as HTMLElement);
+      this.dynamicPage = new DynPage(app as HTMLElement, this);
     }
+  }
+
+  updateSearchPanel() {
+    getOrObserveElement(
+      document.body,
+      [".center-search-container"],
+      (element) => {
+        console.log("Search panel found", element);
+        this.searchPanel = new SearchPanel(element as HTMLElement, this);
+      },
+    );
   }
 
   override onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
@@ -71,6 +89,12 @@ class RootPage extends BaseControl {
       case ButtonId.B:
         window.history.back();
         return true;
+      case ButtonId.START:
+        if (this.searchPanel) {
+          this.searchPanel.focus();
+          return true;
+        }
+        break;
     }
     if (this.playerControl) {
       return this.playerControl.onGamepadButtonEvent(event);
@@ -122,10 +146,12 @@ export class Bibibili {
     console.log("Control:", control);
     while (control) {
       if (control.onGamepadButtonEvent(event)) {
+        console.log("Control handled the event", control, event);
         return;
       }
       control = control.parent;
     }
+    console.log("No control handled the event", event);
   }
 
   onGamepadJoystickEvent(event: GamepadJoystickEvent) {

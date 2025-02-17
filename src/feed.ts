@@ -2,6 +2,7 @@ import {
   ContainerControl,
   ContainerChildControl,
   BaseContainerChildControl,
+  BaseControl,
 } from "./control";
 
 const DOM_RECT_EPS = 1e-2;
@@ -10,8 +11,8 @@ export class FeedCardList extends ContainerControl {
   feedCards: FeedCard[];
   readonly observer: MutationObserver;
 
-  constructor(element: HTMLElement) {
-    super(element, null);
+  constructor(element: HTMLElement, parent: BaseControl) {
+    super(element, parent);
     this.feedCards = [];
     this.updateFeedCards();
     this.observer = new MutationObserver(this.onMutation.bind(this));
