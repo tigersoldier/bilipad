@@ -6,8 +6,8 @@ export class PlayerControl extends BaseControl {
   fullScreenButton: HTMLButtonElement | null = null;
   readonly observer: MutationObserver;
 
-  constructor(element: HTMLElement) {
-    super(element, null);
+  constructor(element: HTMLElement, parent: BaseControl) {
+    super(element, parent);
     this.observer = new MutationObserver(this.onMutation.bind(this));
     this.observer.observe(element, { childList: true, subtree: true });
   }
