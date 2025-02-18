@@ -1,19 +1,15 @@
 import {
-  ContainerControl,
   ContainerChildControl,
   BaseContainerChildControl,
   BaseControl,
 } from "./control";
+import { FlexContainer } from "./flex";
 
-const DOM_RECT_EPS = 1e-2;
-
-export class FeedCardList extends ContainerControl {
-  feedCards: FeedCard[];
+export class FeedCardList extends FlexContainer {
   readonly observer: MutationObserver;
 
   constructor(element: HTMLElement, parent: BaseControl) {
     super(element, parent);
-    this.feedCards = [];
     this.updateFeedCards();
     this.observer = new MutationObserver(this.onMutation.bind(this));
     this.observer.observe(element.querySelector(".container") as HTMLElement, {
@@ -22,91 +18,28 @@ export class FeedCardList extends ContainerControl {
     });
   }
 
-  override focus() {
-    this.feedCards[0].focus();
-  }
-
   onMutation(mutations: MutationRecord[]) {
-    console.log("Mutation:", mutations);
+    console.log("Feed Mutation:", mutations);
+    for (const mutation of mutations) {
+      if (mutation.type === "childList") {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === Node.ELEMENT_NODE) {
+            console.log("Added feed card:", node.textContent);
+          }
+        }
+      }
+    }
     this.updateFeedCards();
   }
 
   updateFeedCards() {
     const feedCards = document.querySelectorAll(".container > div");
-    this.feedCards = [];
+    this.children = [];
     for (let i = 0; i < feedCards.length; i++) {
-      this.feedCards.push(new FeedCard(feedCards[i] as HTMLElement, this, i));
+      this.addChild(new FeedCard(feedCards[i] as HTMLElement, this, i));
     }
-  }
-
-  override innerDown(currentIdx: number): boolean {
-    if (currentIdx >= this.feedCards.length - 1) {
-      return false;
-    }
-    let bestMatch = this.feedCards[currentIdx + 1];
-    const currentRect =
-      this.feedCards[currentIdx].element.getBoundingClientRect();
-    for (let i = currentIdx + 2; i < this.feedCards.length; i++) {
-      const feedCard = this.feedCards[i];
-      const rect = feedCard.element.getBoundingClientRect();
-      if (rect.top > currentRect.top + currentRect.height - DOM_RECT_EPS) {
-        bestMatch = feedCard;
-        if (
-          rect.left < currentRect.left + currentRect.width + DOM_RECT_EPS &&
-          rect.left + rect.width > currentRect.left - DOM_RECT_EPS
-        ) {
-          // We found an element that is below the current element and overlaps with the current element
-          // column-wise. This is the best match.
-          feedCard.focus();
-          return true;
-        }
-      }
-    }
-    bestMatch.focus();
-    return true;
-  }
-
-  override innerRight(currentIdx: number): boolean {
-    if (currentIdx >= this.feedCards.length - 1) {
-      return false;
-    }
-    this.feedCards[currentIdx + 1].focus();
-    return true;
-  }
-
-  override innerLeft(currentIdx: number): boolean {
-    if (currentIdx <= 0) {
-      return false;
-    }
-    this.feedCards[currentIdx - 1].focus();
-    return true;
-  }
-
-  override innerUp(currentIdx: number): boolean {
-    if (currentIdx <= 0) {
-      return false;
-    }
-    let bestMatch = this.feedCards[currentIdx - 1];
-    const currentRect =
-      this.feedCards[currentIdx].element.getBoundingClientRect();
-    for (let i = currentIdx - 2; i >= 0; i--) {
-      const feedCard = this.feedCards[i];
-      const rect = feedCard.element.getBoundingClientRect();
-      if (rect.top + rect.height < currentRect.top + DOM_RECT_EPS) {
-        bestMatch = feedCard;
-        if (
-          rect.left < currentRect.left + currentRect.width + DOM_RECT_EPS &&
-          rect.left + rect.width > currentRect.left - DOM_RECT_EPS
-        ) {
-          // We found an element that is above the current element and overlaps with the current element
-          // column-wise. This is the best match.
-          feedCard.focus();
-          return true;
-        }
-      }
-    }
-    bestMatch.focus();
-    return true;
+    // This corrects the focus from the loading card to the loaded card.
+    this.focus();
   }
 }
 

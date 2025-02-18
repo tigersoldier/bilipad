@@ -80,6 +80,8 @@ export class BaseControl {
   onActionButtonPressed(event: GamepadButtonEvent): boolean {
     return false;
   }
+
+  destroy() {}
 }
 
 // For mixin typing. See https://www.typescriptlang.org/docs/handbook/mixins.html

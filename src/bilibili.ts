@@ -11,7 +11,7 @@ import { FeedCardList } from "./feed";
 import { PlayerControl } from "./player";
 import { DynPage } from "./dyn_page";
 import { getOrObserveElement } from "./control";
-import { SearchPanel } from "./search";
+import { SearchPanel, SearchPage } from "./search";
 
 class RootPage extends BaseControl {
   headerControl: HeaderControl | null;
@@ -19,6 +19,7 @@ class RootPage extends BaseControl {
   playerControl: PlayerControl | null;
   dynamicPage: DynPage | null;
   searchPanel: SearchPanel | null;
+  searchPage: SearchPage | null;
 
   constructor() {
     super(document.body, null);
@@ -27,6 +28,7 @@ class RootPage extends BaseControl {
     this.playerControl = null;
     this.dynamicPage = null;
     this.searchPanel = null;
+    this.searchPage = null;
     getOrObserveElement(document.body, [".bili-header"], (element) => {
       this.headerControl = new HeaderControl(element as HTMLElement);
     });
@@ -35,6 +37,7 @@ class RootPage extends BaseControl {
     this.updatePlayerControl();
     this.updateDynamicPage();
     this.updateSearchPanel();
+    this.updateSearchPage();
   }
 
   updateFeedCardList() {
@@ -72,6 +75,17 @@ class RootPage extends BaseControl {
     );
   }
 
+  updateSearchPage() {
+    if (window.location.hostname !== "search.bilibili.com") {
+      return;
+    }
+    const searchPage = document.querySelector(".search-layout");
+    if (searchPage) {
+      console.log("Search page found", searchPage);
+      this.searchPage = new SearchPage(searchPage as HTMLElement, this);
+    }
+  }
+
   override onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
     if (this.dynamicPage) {
       return this.dynamicPage.onGamepadButtonEvent(event);
@@ -80,12 +94,6 @@ class RootPage extends BaseControl {
       return false;
     }
     switch (event.buttonId) {
-      case ButtonId.DPAD_DOWN:
-        if (this.feedCardList) {
-          this.feedCardList.focus();
-          return true;
-        }
-        break;
       case ButtonId.B:
         window.history.back();
         return true;
@@ -98,6 +106,10 @@ class RootPage extends BaseControl {
     }
     if (this.playerControl) {
       return this.playerControl.onGamepadButtonEvent(event);
+    } else if (this.searchPage) {
+      return this.searchPage.onGamepadButtonEvent(event);
+    } else if (this.feedCardList) {
+      return this.feedCardList.onGamepadButtonEvent(event);
     }
     return false;
   }
