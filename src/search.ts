@@ -63,6 +63,21 @@ export class SearchPanel extends ContainerControl {
     this.searchBar?.focus();
   }
 
+  override onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
+    if (event.eventType === EventType.PRESSED) {
+      switch (event.buttonId) {
+        case ButtonId.B:
+          // This triggers the event listener to close the search panel.
+          document.body.dispatchEvent(
+            new MouseEvent("mousedown", { bubbles: true }),
+          );
+          this.parent!.focus();
+          return true;
+      }
+    }
+    return super.onGamepadButtonEvent(event);
+  }
+
   override innerDown(currentIdx: number): boolean {
     console.log("Inner down, currentIdx:", currentIdx, this.suggestionItems);
     const nextIdx = currentIdx + 1;
@@ -137,8 +152,11 @@ class SearchBar extends ContainerChildControl(BaseContainerChildControl) {
           if (this.inputElement.value) {
             this.cleanButtonElement.click();
             return true;
+          } else {
+            this.inputElement.blur();
+            // Bubbles up to the search panel, which closes it.
+            return false;
           }
-          return false;
       }
     }
     return super.onGamepadButtonEvent(event);

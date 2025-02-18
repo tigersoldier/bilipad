@@ -86,6 +86,13 @@ class RootPage extends BaseControl {
     }
   }
 
+  override focus() {
+    const defaultControl = this.getDefaultControl();
+    if (defaultControl) {
+      defaultControl.focus();
+    }
+  }
+
   override onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
     if (this.dynamicPage) {
       return this.dynamicPage.onGamepadButtonEvent(event);
@@ -104,14 +111,27 @@ class RootPage extends BaseControl {
         }
         break;
     }
-    if (this.playerControl) {
-      return this.playerControl.onGamepadButtonEvent(event);
-    } else if (this.searchPage) {
-      return this.searchPage.onGamepadButtonEvent(event);
-    } else if (this.feedCardList) {
-      return this.feedCardList.onGamepadButtonEvent(event);
+    const defaultControl = this.getDefaultControl();
+    if (defaultControl) {
+      return defaultControl.onGamepadButtonEvent(event);
     }
     return false;
+  }
+
+  private getDefaultControl() {
+    if (this.dynamicPage) {
+      return this.dynamicPage;
+    }
+    if (this.searchPage) {
+      return this.searchPage;
+    }
+    if (this.feedCardList) {
+      return this.feedCardList;
+    }
+    if (this.playerControl) {
+      return this.playerControl;
+    }
+    return this;
   }
 }
 
