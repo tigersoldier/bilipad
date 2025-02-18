@@ -2,54 +2,54 @@ import {
   BaseContainerChildControl,
   ContainerChildControl,
   ContainerControl,
+  getOrObserveElement,
 } from "./control";
 import { BaseControl } from "./control";
 import { ButtonId } from "./gamepad";
 import { GamepadButtonEvent } from "./gamepad";
 import { EventType } from "./gamepad";
+import { FlexContainer } from "./flex";
 
 export class SearchPanel extends ContainerControl {
   private suggestionItems: SuggestionItem[] = [];
-  private searchBar: SearchBar;
-  private searchPanelObserver: MutationObserver;
-  private searchPanelElement: HTMLElement;
+  private searchBar: SearchBar | null = null;
+  private searchPanelObserver: MutationObserver | null = null;
+  private searchPanelElement: HTMLElement | null = null;
 
   constructor(element: HTMLElement, parent: BaseControl) {
     super(element, parent);
-    const searchFormElement = element.querySelector("#nav-searchform");
-    if (!searchFormElement) {
-      throw new Error("Search form element not found");
-    }
-    this.searchBar = new SearchBar(
-      searchFormElement as HTMLElement,
-      this,
-      0 /* index */,
-    );
+    getOrObserveElement(element, ["#nav-searchform"], (element) => {
+      const searchFormElement = element as HTMLElement;
+      this.searchBar = new SearchBar(
+        searchFormElement as HTMLElement,
+        this,
+        0 /* index */,
+      );
+    });
 
-    const searchPanelElement = element.querySelector(".search-panel");
-    if (!searchPanelElement) {
-      throw new Error("Search panel element not found");
-    }
-    this.searchPanelElement = searchPanelElement as HTMLElement;
+    getOrObserveElement(element, [".search-panel"], (element) => {
+      const searchPanelElement = element as HTMLElement;
+      this.searchPanelElement = searchPanelElement;
 
-    // Observe the search panel element
-    this.searchPanelObserver = new MutationObserver(() => {
+      // Observe the search panel element
+      this.searchPanelObserver = new MutationObserver(() => {
+        this.updateSuggestionItems();
+      });
+      this.searchPanelObserver.observe(searchPanelElement, {
+        childList: true,
+        subtree: true,
+      });
       this.updateSuggestionItems();
     });
-    this.searchPanelObserver.observe(searchPanelElement, {
-      childList: true,
-      subtree: true,
-    });
-    this.updateSuggestionItems();
   }
 
   private updateSuggestionItems() {
     const trendingItemElements =
-      this.searchPanelElement.querySelectorAll(".trending-item");
+      this.searchPanelElement?.querySelectorAll(".trending-item");
     const suggestionItemElements =
-      this.searchPanelElement.querySelectorAll(".suggest-item");
-    const allItems = Array.from(trendingItemElements).concat(
-      Array.from(suggestionItemElements),
+      this.searchPanelElement?.querySelectorAll(".suggest-item");
+    const allItems = Array.from(trendingItemElements ?? []).concat(
+      Array.from(suggestionItemElements ?? []),
     );
     console.log("Search suggestion items:", allItems);
     this.suggestionItems = allItems.map((item, index) => {
@@ -60,7 +60,7 @@ export class SearchPanel extends ContainerControl {
 
   override focus() {
     console.log("Focusing search panel");
-    this.searchBar.focus();
+    this.searchBar?.focus();
   }
 
   override innerDown(currentIdx: number): boolean {
@@ -83,7 +83,7 @@ export class SearchPanel extends ContainerControl {
       return true;
     }
     if (prevIdx === 0) {
-      this.searchBar.focus();
+      this.searchBar?.focus();
       return true;
     }
     this.suggestionItems[prevIdx - 1].focus();
@@ -155,6 +155,138 @@ class SuggestionItem extends ContainerChildControl(BaseContainerChildControl) {
 
   override onActionButtonPressed(): boolean {
     this.element.click();
+    return true;
+  }
+}
+
+export class SearchPage extends ContainerControl {
+  private searchResultGrid: SearchResultGrid | null = null;
+  private prevButtonElement: HTMLElement | null = null;
+  private nextButtonElement: HTMLElement | null = null;
+  private searchPageObserver: MutationObserver | null = null;
+
+  constructor(element: HTMLElement, parent: BaseControl) {
+    super(element, parent);
+
+    const searchPageWrapperElement = this.element.querySelector(
+      ".search-page-wrapper",
+    ) as HTMLElement;
+
+    this.searchPageObserver = new MutationObserver((mutations) => {
+      console.log("Search page wrapper mutation:", mutations);
+      this.updateSearchPage();
+    });
+    this.searchPageObserver.observe(searchPageWrapperElement, {
+      childList: true,
+      subtree: false,
+    });
+  }
+
+  private updateSearchPage() {
+    if (this.searchResultGrid) {
+      this.searchResultGrid.destroy();
+    }
+    this.searchResultGrid = new SearchResultGrid(
+      this.element.querySelector(".video-list") as HTMLElement,
+      this,
+    );
+
+    getOrObserveElement(this.element, [".vui_pagenation"], (element) => {
+      const paginationPanel = element as HTMLElement;
+      const sideButtons = paginationPanel.querySelectorAll(
+        ".vui_button.vui_pagenation--btn-side",
+      );
+      if (sideButtons.length != 2) {
+        console.error(
+          "Search result grid has unexpected number of side buttons",
+          sideButtons,
+        );
+        return;
+      }
+      this.prevButtonElement = sideButtons[0] as HTMLElement;
+      this.nextButtonElement = sideButtons[1] as HTMLElement;
+    });
+  }
+
+  override focus() {
+    this.searchResultGrid?.focus();
+  }
+
+  override onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
+    if (event.eventType === EventType.PRESSED) {
+      switch (event.buttonId) {
+        case ButtonId.LB:
+          if (this.prevButtonElement) {
+            console.log("Clicking search page prev button");
+            this.prevButtonElement.click();
+            return true;
+          }
+          return false;
+        case ButtonId.RB:
+          if (this.nextButtonElement) {
+            console.log("Clicking search page next button");
+            this.nextButtonElement.click();
+            return true;
+          }
+          return false;
+        case ButtonId.DPAD_DOWN:
+        case ButtonId.DPAD_RIGHT:
+          return this.searchResultGrid?.onGamepadButtonEvent(event) ?? false;
+      }
+    }
+    return super.onGamepadButtonEvent(event);
+  }
+}
+
+export class SearchResultGrid extends FlexContainer {
+  private readonly observer: MutationObserver;
+
+  constructor(element: HTMLElement, parent: SearchPage) {
+    super(element, parent);
+    console.log("Search result grid:", element);
+    this.observer = new MutationObserver((mutations) => {
+      console.log("Search result grid mutation:", mutations);
+      this.updateSearchResultItems();
+    });
+    this.observer.observe(element, { childList: true, subtree: false });
+    this.updateSearchResultItems();
+  }
+
+  private updateSearchResultItems() {
+    this.children = [];
+    let i = 0;
+    for (const child of this.element.childNodes) {
+      if (child.nodeType !== Node.ELEMENT_NODE) {
+        continue;
+      }
+      const element = child as HTMLElement;
+      console.log("Search result grid child:", element);
+      this.addChild(new SearchResultItem(element, this, i));
+      i++;
+    }
+  }
+
+  override destroy() {
+    this.observer.disconnect();
+    super.destroy();
+  }
+}
+
+class SearchResultItem extends ContainerChildControl(
+  BaseContainerChildControl,
+) {
+  private readonly anchorElement: HTMLElement;
+
+  constructor(element: HTMLElement, parent: SearchResultGrid, index: number) {
+    super(element, parent);
+    this.index = index;
+    // Make the search result item focusable
+    this.element.setAttribute("tabindex", "-1");
+    this.anchorElement = element.querySelector("a") as HTMLElement;
+  }
+
+  override onActionButtonPressed(): boolean {
+    this.anchorElement.click();
     return true;
   }
 }
