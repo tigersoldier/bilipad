@@ -327,6 +327,7 @@ export class GamepadManager {
     // Listen to window focus/blur events
     window.addEventListener("focus", () => {
       console.log("Window focused");
+      this.onPageActivated();
     });
     window.addEventListener("blur", () => {
       console.log("Window blurred");
