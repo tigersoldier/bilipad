@@ -1,4 +1,4 @@
-Bilibili Gamepad Controller
+# Bilibili Gamepad Controller
 
 This is a Chrome extension that allows you to use a gamepad to control Bilibili.
 
@@ -34,3 +34,7 @@ You can also run the hooks manually with:
 ```bash
 npm run pre-commit
 ```
+
+## Credit
+
+* PromptFont by Yukari "Shinmera" Hafner, available at https://shinmera.com/promptfont

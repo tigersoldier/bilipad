@@ -27,12 +27,7 @@ export class HeaderControl extends BaseControl {
       }
       if (anchor.hostname === "t.bilibili.com") {
         console.log("Found fav menu", child);
-        this.favMenu = new HeaderEntry(
-          childElement,
-          this,
-          anchor.href,
-          "images/gamepad_button_a.svg",
-        );
+        this.favMenu = new HeaderEntry(childElement, this, anchor.href);
       }
     }
   }
@@ -52,7 +47,7 @@ export class HeaderControl extends BaseControl {
   }
 
   setShowGamepadButtons(show: boolean) {
-    this.element.classList.toggle("bilipad-show-gamepad-buttons", show);
+    this.element.classList.toggle("bilipad-buttons-visible", show);
   }
 }
 
@@ -61,16 +56,11 @@ class HeaderEntry extends BaseControl {
     element: HTMLElement,
     parent: HeaderControl,
     readonly url: string,
-    buttonImagePath: string,
   ) {
     super(element, parent);
-    const button = document.createElement("img");
-    const buttonImageUrl = chrome.runtime.getURL(buttonImagePath);
-    console.log("buttonImageUrl", buttonImageUrl);
-    button.src = buttonImageUrl;
-    button.classList.add("bilipad-gamepad-button");
-    button.classList.add("bilipad-gamepad-button-a");
-    element.appendChild(button);
+    element.classList.add("bilipad-button-after");
+    element.classList.add("bilipad-button-a");
+    element.classList.add("bilipad-button-hidden");
   }
 
   override onActionButtonPressed(): boolean {

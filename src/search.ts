@@ -122,6 +122,7 @@ class SearchBar extends ContainerChildControl(BaseContainerChildControl) {
   private readonly inputElement: HTMLInputElement;
   private readonly searchButtonElement: HTMLButtonElement;
   private readonly cleanButtonElement: HTMLButtonElement;
+  private readonly searchContentElement: HTMLElement;
 
   constructor(element: HTMLElement, parent: SearchPanel, index: number) {
     super(element, parent);
@@ -134,7 +135,16 @@ class SearchBar extends ContainerChildControl(BaseContainerChildControl) {
     this.cleanButtonElement = element.querySelector(
       ".nav-search-clean",
     ) as HTMLButtonElement;
+    this.searchContentElement = element.querySelector(
+      ".nav-search-content",
+    ) as HTMLElement;
     this.index = index;
+
+    // add a start button icon before the search content
+    // NOTE: we don't add to this.element because its class list will be overridden
+    // on activated
+    this.searchContentElement.classList.add("bilipad-button-before");
+    this.searchContentElement.classList.add("bilipad-button-start");
   }
 
   override focus() {

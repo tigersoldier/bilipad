@@ -19,7 +19,7 @@
     },
     "web_accessible_resources": [
         {
-            "resources": ["images/gamepad_button_a.svg"],
+            "resources": ["fonts/promptfont.otf"],
             "matches": ["https://*.bilibili.com/*"]
         }
     ]
