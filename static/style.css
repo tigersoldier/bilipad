@@ -9,3 +9,50 @@
 .bili-dyn-item:focus {
     outline: 1px solid red;
 }
+
+.right-entry .bilipad-button-after::after {
+    font-size: 20px;
+    color: #fff;
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    line-height: 1;
+    transition: 0.15s;
+}
+
+.bilipad-button-after::after,
+.bilipad-button-before::before {
+    font-family: "PromptFont";
+}
+
+.bilipad-button-after.bilipad-button-a::after,
+.bilipad-button-before.bilipad-button-a::before {
+    content: "⇓";
+}
+
+.bilipad-button-after.bilipad-button-start::after,
+.bilipad-button-before.bilipad-button-start::before {
+    content: "⇻";
+}
+
+.bilipad-button-hidden.bilipad-button-after::after,
+.bilipad-button-hidden.bilipad-button-before::before {
+    opacity: 0;
+}
+
+.bilipad-buttons-visible .bilipad-button-hidden.bilipad-button-after::after,
+.bilipad-buttons-visible .bilipad-button-hidden.bilipad-button-before::before {
+    opacity: 1;
+}
+
+#nav-searchform .nav-search-content::before {
+    color: #61666D;
+    font-size: 18px;
+    padding-right: 8px;
+}
+
+#nav-searchform.is-focus .nav-search-content::before {
+    content: "";
+    padding-right: 0;
+}
