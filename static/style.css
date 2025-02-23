@@ -1,3 +1,5 @@
+/****** Main page ******/
+
 .right-entry.gamepad-activated {
     outline: 1px solid red;
 }
@@ -10,9 +12,10 @@
     outline: 1px solid red;
 }
 
+/****** Header control ******/
+
 .right-entry .bilipad-button-after::after {
     font-size: 20px;
-    color: #fff;
     position: absolute;
     top: 100%;
     left: 50%;
@@ -20,6 +23,8 @@
     line-height: 1;
     transition: 0.15s;
 }
+
+/****** Common buttons ******/
 
 .bilipad-button-after::after,
 .bilipad-button-before::before {
@@ -36,6 +41,16 @@
     content: "⇻";
 }
 
+.bilipad-button-after.bilipad-button-lb::after,
+.bilipad-button-before.bilipad-button-lb::before {
+    content: "↘";
+}
+
+.bilipad-button-after.bilipad-button-rb::after,
+.bilipad-button-before.bilipad-button-rb::before {
+    content: "↙";
+}
+
 .bilipad-button-hidden.bilipad-button-after::after,
 .bilipad-button-hidden.bilipad-button-before::before {
     opacity: 0;
@@ -46,6 +61,9 @@
     opacity: 1;
 }
 
+
+/****** Search page ******/
+
 #nav-searchform .nav-search-content::before {
     color: #61666D;
     font-size: 18px;
@@ -55,4 +73,20 @@
 #nav-searchform.is-focus .nav-search-content::before {
     content: "";
     padding-right: 0;
+}
+
+button.vui_pagenation--btn-side.bilipad-button-before::before,
+button.vui_pagenation--btn-side.bilipad-button-after::after {
+    font-size: 24px;
+    line-height: 14px;
+    top: 2px;
+    position: relative;
+}
+
+button.vui_pagenation--btn-side.bilipad-button-before::before {
+    padding-right: 8px;
+}
+
+button.vui_pagenation--btn-side.bilipad-button-after::after {
+    padding-left: 8px;
 }

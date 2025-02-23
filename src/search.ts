@@ -208,16 +208,24 @@ export class SearchPage extends ContainerControl {
       childList: true,
       subtree: false,
     });
+    this.updateSearchPage();
   }
 
   private updateSearchPage() {
     if (this.searchResultGrid) {
       this.searchResultGrid.destroy();
+      this.searchResultGrid = null;
     }
-    this.searchResultGrid = new SearchResultGrid(
-      this.element.querySelector(".video-list") as HTMLElement,
-      this,
-    );
+    const searchResultGridElement = this.element.querySelector(
+      ".video-list",
+    ) as HTMLElement;
+    console.log("Search result grid element:", searchResultGridElement);
+    if (searchResultGridElement) {
+      this.searchResultGrid = new SearchResultGrid(
+        searchResultGridElement,
+        this,
+      );
+    }
 
     getOrObserveElement(this.element, [".vui_pagenation"], (element) => {
       const paginationPanel = element as HTMLElement;
@@ -232,7 +240,11 @@ export class SearchPage extends ContainerControl {
         return;
       }
       this.prevButtonElement = sideButtons[0] as HTMLElement;
+      this.prevButtonElement.classList.add("bilipad-button-before");
+      this.prevButtonElement.classList.add("bilipad-button-rb");
       this.nextButtonElement = sideButtons[1] as HTMLElement;
+      this.nextButtonElement.classList.add("bilipad-button-after");
+      this.nextButtonElement.classList.add("bilipad-button-lb");
     });
   }
 
