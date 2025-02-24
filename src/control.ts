@@ -81,7 +81,9 @@ export class BaseControl {
     return false;
   }
 
-  destroy() {}
+  destroy() {
+    attachControl(this.element, undefined);
+  }
 }
 
 // For mixin typing. See https://www.typescriptlang.org/docs/handbook/mixins.html
@@ -178,7 +180,7 @@ export class ContainerControl extends BaseControl {
   }
 }
 
-export function attachControl(element: Element, control: BaseControl) {
+export function attachControl(element: Element, control?: BaseControl) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (element as any).biliCtrl = control;
 }

@@ -9,14 +9,15 @@ const LIST_ITEM_CLASS = "bili-dyn-list__item";
 
 export class DynamicList extends ContainerControl {
   readonly items: DynamicListItem[] = [];
+  private observer?: MutationObserver;
 
   constructor(element: HTMLElement, parent: BaseControl) {
     super(element, parent);
     // observe the children of the element
-    const observer = new MutationObserver((mutations) =>
+    this.observer = new MutationObserver((mutations) =>
       this.onMutations(mutations),
     );
-    observer.observe(element, { childList: true });
+    this.observer.observe(element, { childList: true });
     const items = element.querySelectorAll(`.${LIST_ITEM_CLASS}`);
     for (const item of items) {
       this.addItem(item as HTMLElement);
@@ -69,6 +70,11 @@ export class DynamicList extends ContainerControl {
       return true;
     }
     return false;
+  }
+
+  override destroy() {
+    this.observer?.disconnect();
+    super.destroy();
   }
 }
 
