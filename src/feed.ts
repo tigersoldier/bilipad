@@ -44,16 +44,13 @@ export class FeedCardList extends FlexContainer {
 }
 
 export class FeedCard extends ContainerChildControl(BaseContainerChildControl) {
-  readonly url: string | null;
+  readonly anchor: HTMLAnchorElement | null;
+
   constructor(element: HTMLElement, parent: FeedCardList, index: number) {
     super(element, parent);
     this.element.setAttribute("tabindex", "-1");
     this.index = index;
-    this.url = null;
-    const anchor = element.querySelector("a");
-    if (anchor) {
-      this.url = anchor.href;
-    }
+    this.anchor = element.querySelector("a");
   }
 
   focus() {
@@ -62,8 +59,8 @@ export class FeedCard extends ContainerChildControl(BaseContainerChildControl) {
   }
 
   override onActionButtonPressed(): boolean {
-    if (this.url) {
-      window.location.href = this.url;
+    if (this.anchor) {
+      this.anchor.click();
       return true;
     }
     return false;

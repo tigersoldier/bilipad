@@ -94,15 +94,28 @@ class RootPage extends BaseControl {
   }
 
   override onGamepadButtonEvent(event: GamepadButtonEvent): boolean {
-    if (this.dynamicPage) {
-      return this.dynamicPage.onGamepadButtonEvent(event);
-    }
     if (event.eventType !== EventType.PRESSED) {
       return false;
     }
     switch (event.buttonId) {
       case ButtonId.B:
-        window.history.back();
+        console.log("Back button pressed", window.history.length);
+        if (
+          window.location.hostname === "www.bilibili.com" &&
+          window.location.pathname === "/"
+        ) {
+          console.log("On the home page, don't do anything");
+          // On the home page, don't do anything
+          return false;
+        }
+        if (window.history.length > 1) {
+          console.log("Going back");
+          window.history.back();
+          return true;
+        }
+        console.log("Not on the home page, kill the tab");
+        // Not on the home page, kill the tab
+        window.close();
         return true;
       case ButtonId.START:
         if (this.searchPanel) {
