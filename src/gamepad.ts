@@ -461,6 +461,8 @@ export class GamepadManager {
   sendReleasedEvents(gamepad: Gamepad) {
     this.buttonStates[gamepad.index].forEach((buttonState, index) => {
       if (buttonState.pressed) {
+        buttonState.pressed = false;
+        buttonState.updateTimeMs = Date.now();
         this.emitButtonEvent(
           gamepad,
           { pressed: false, touched: false, value: 0 },

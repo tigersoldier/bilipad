@@ -27,7 +27,7 @@ export class HeaderControl extends BaseControl {
       }
       if (anchor.hostname === "t.bilibili.com") {
         console.log("Found fav menu", child);
-        this.favMenu = new HeaderEntry(childElement, this, anchor.href);
+        this.favMenu = new HeaderEntry(childElement, this);
       }
     }
   }
@@ -42,6 +42,9 @@ export class HeaderControl extends BaseControl {
           return this.favMenu.onActionButtonPressed();
         }
         break;
+      case ButtonId.B:
+        window.close();
+        return true;
     }
     return false;
   }
@@ -52,19 +55,18 @@ export class HeaderControl extends BaseControl {
 }
 
 class HeaderEntry extends BaseControl {
-  constructor(
-    element: HTMLElement,
-    parent: HeaderControl,
-    readonly url: string,
-  ) {
+  private anchor: HTMLAnchorElement;
+
+  constructor(element: HTMLElement, parent: HeaderControl) {
     super(element, parent);
     element.classList.add("bilipad-button-after");
     element.classList.add("bilipad-button-a");
     element.classList.add("bilipad-button-hidden");
+    this.anchor = element.querySelector("a")!;
   }
 
   override onActionButtonPressed(): boolean {
-    window.location.href = this.url;
+    this.anchor.click();
     return true;
   }
 }
